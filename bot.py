@@ -64,7 +64,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "X-Title": "LoM Shroom Helper",
                 },
                 json={
-                    "model": "mistralai/mistral-7b-instruct:free",
+                    "model": "google/gemma-4-27b-it:free",
                     "messages": [
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": user_message}
