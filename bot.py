@@ -3,11 +3,14 @@ import logging
 import httpx
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+import base64
 
 logging.basicConfig(level=logging.INFO)
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+
+SITE_URL = "https://guidesbygrace.uk"
 
 MODELS = [
     "google/gemma-4-31b-it:free",
@@ -17,30 +20,70 @@ MODELS = [
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
 
-SYSTEM_PROMPT = """You are Shroom Helper — a friendly AI assistant for the mobile game Legend of Mushroom (LoM).
+SYSTEM_PROMPT = """You are Shroom Helper — an assistant for the mobile game Legend of Mushroom (LoM).
 
-You help players with:
-- Classes and builds (Warrior, Mage, Archer, etc.)
-- Equipment and upgrades
-- Events and quests
-- Alliance tips
-- Game mechanics (lamp, skills, pets, etc.)
-- General game advice
+IMPORTANT RULES:
+1. You ONLY use information from the website guidesbygrace.uk to answer questions. Do not use any other sources or your own knowledge about the game.
+2. If the site content provided does not contain an answer to the question, say: "I couldn't find information about this on guidesbygrace.uk. Try checking the site directly."
+3. Always simplify the language — explain clearly and simply, avoid complex terms.
+4. Language rule:
+   - If the user writes in RUSSIAN → answer in Russian, translate all info from the site
+   - If the user writes in ENGLISH → answer in English, no translation needed
+5. If the user sends a screenshot with items/equipment and asks for build advice → analyze what's visible and give advice based on guidesbygrace.uk guides.
+6. Be friendly, concise, and helpful.
 
-Rules:
-- Always detect the language of the user's message and reply in the SAME language (Russian or English)
-- Be friendly, helpful and concise
-- If you don't know something specific about LoM, say so honestly
-- Use game terms correctly (Lamp, Genie, Skills, Alliance, etc.)
-- Keep answers short and clear (mobile-friendly)
-
-You only answer questions related to Legend of Mushroom. For unrelated topics, politely redirect to the game.
+The site content will be provided to you in each message.
 """
 
-async def ask_ai(user_message: str) -> str:
+async def fetch_site_content(query: str) -> str:
+    """Fetch relevant pages from guidesbygrace.uk"""
+    pages_to_try = [
+        f"{SITE_URL}",
+        f"{SITE_URL}/updates/june-7",
+        f"{SITE_URL}/classes",
+        f"{SITE_URL}/builds",
+        f"{SITE_URL}/guides",
+    ]
+    
+    content = ""
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        for url in pages_to_try[:2]:  # fetch main + latest update
+            try:
+                resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+                if resp.status_code == 200:
+                    # Get text content, strip HTML tags roughly
+                    text = resp.text
+                    # Remove script/style blocks
+                    import re
+                    text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL)
+                    text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
+                    text = re.sub(r'<[^>]+>', ' ', text)
+                    text = re.sub(r'\s+', ' ', text).strip()
+                    content += f"\n\n--- Content from {url} ---\n{text[:3000]}"
+            except Exception as e:
+                logging.warning(f"Failed to fetch {url}: {e}")
+    
+    return content if content else "Could not load site content."
+
+async def ask_ai(user_message: str, site_content: str, image_data: str = None) -> str:
+    prompt = f"""Site content from guidesbygrace.uk:
+{site_content}
+
+User question: {user_message}"""
+
     for model in MODELS:
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
+            messages_content = []
+            
+            if image_data:
+                messages_content = [
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}},
+                    {"type": "text", "text": prompt}
+                ]
+            else:
+                messages_content = [{"type": "text", "text": prompt}]
+
+            async with httpx.AsyncClient(timeout=40) as client:
                 response = await client.post(
                     "https://openrouter.ai/api/v1/chat/completions",
                     headers={
@@ -53,9 +96,9 @@ async def ask_ai(user_message: str) -> str:
                         "model": model,
                         "messages": [
                             {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": user_message}
+                            {"role": "user", "content": messages_content}
                         ],
-                        "max_tokens": 500,
+                        "max_tokens": 700,
                     }
                 )
             data = response.json()
@@ -71,20 +114,19 @@ async def ask_ai(user_message: str) -> str:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🍄 Привет! Я Shroom Helper — твой помощник по Legend of Mushroom!\n\n"
-        "Спрашивай что угодно про игру: классы, билды, экипировку, ивенты и многое другое.\n\n"
-        "В групповом чате обращайся ко мне через @упоминание или ответь на моё сообщение.\n\n"
+        "Я отвечаю на основе гайдов с сайта guidesbygrace.uk\n"
+        "Можешь задать вопрос или отправить скриншот своих вещей — помогу со сборкой!\n\n"
         "🍄 Hello! I'm Shroom Helper — your Legend of Mushroom assistant!\n"
-        "In group chats, mention me with @ or reply to my message!"
+        "I answer based on guides from guidesbygrace.uk\n"
+        "Ask me anything or send a screenshot of your items for build advice!"
     )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🍄 *Что я умею:*\n\n"
-        "• Отвечать на вопросы о классах и билдах\n"
-        "• Помогать с экипировкой и прокачкой\n"
-        "• Рассказывать об ивентах\n"
-        "• Давать советы по альянсу\n"
-        "• Объяснять механики игры\n\n"
+        "• Отвечать на вопросы по гайдам с guidesbygrace.uk\n"
+        "• Переводить гайды на русский язык\n"
+        "• Анализировать скриншот твоих вещей и давать советы по сборке\n\n"
         "В группе: напиши @имя\\_бота вопрос или ответь на моё сообщение 👇",
         parse_mode="Markdown"
     )
@@ -102,22 +144,41 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message.reply_to_message.from_user and
         message.reply_to_message.from_user.username == bot_username
     )
+    has_photo = message.photo is not None and len(message.photo) > 0
 
-    # В личке отвечаем всегда, в группе — только при упоминании или ответе
     if not is_private and not is_mention and not is_reply_to_bot:
         return
 
-    # Убираем @упоминание из текста
-    user_message = message.text or ""
+    # Get text
+    user_message = message.text or message.caption or ""
     if is_mention:
         user_message = user_message.replace(f"@{bot_username}", "").strip()
 
-    if not user_message:
-        await message.reply_text("🍄 Задай вопрос про Legend of Mushroom!")
+    # Get image if present
+    image_data = None
+    if has_photo:
+        try:
+            photo = message.photo[-1]
+            file = await context.bot.get_file(photo.file_id)
+            async with httpx.AsyncClient() as client:
+                img_response = await client.get(file.file_path)
+                image_data = base64.b64encode(img_response.content).decode("utf-8")
+            if not user_message:
+                user_message = "Help me with a build based on the items in this screenshot."
+        except Exception as e:
+            logging.error(f"Image error: {e}")
+
+    if not user_message and not image_data:
+        await message.reply_text("🍄 Задай вопрос про Legend of Mushroom или отправь скриншот!")
         return
 
     await message.chat.send_action("typing")
-    reply = await ask_ai(user_message)
+
+    # Fetch site content
+    site_content = await fetch_site_content(user_message)
+
+    # Ask AI
+    reply = await ask_ai(user_message, site_content, image_data)
 
     if reply:
         await message.reply_text(reply)
@@ -132,5 +193,6 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_message))
     print("🍄 Shroom Helper запущен!")
     app.run_polling()
