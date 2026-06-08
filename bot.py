@@ -9,6 +9,15 @@ logging.basicConfig(level=logging.INFO)
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
+# Список бесплатных моделей — перебираются по очереди при ошибке
+MODELS = [
+    "google/gemma-4-31b-it:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "openai/gpt-oss-120b:free",
+    "liquid/lfm-2.5-1.2b-instruct:free",
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+]
+
 SYSTEM_PROMPT = """You are Shroom Helper — a friendly AI assistant for the mobile game Legend of Mushroom (LoM).
 
 You help players with:
@@ -52,38 +61,45 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     await update.message.chat.send_action("typing")
-    response = None
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": "https://t.me/lom_helper_mushroom_bot",
-                    "X-Title": "LoM Shroom Helper",
-                },
-                json={
-                    "model": "google/gemma-4-26b-a4b-it:free",
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_message}
-                    ],
-                    "max_tokens": 500,
-                }
-            )
-        data = response.json()
-        logging.info(f"OpenRouter response: {data}")
-        reply = data["choices"][0]["message"]["content"]
-        await update.message.reply_text(reply)
-    except Exception as e:
-        logging.error(f"Error: {e}")
-        if response is not None:
-            logging.error(f"Status: {response.status_code}, Body: {response.text}")
-        await update.message.reply_text(
-            "⚠️ Произошла ошибка. Попробуй ещё раз!\n"
-            "⚠️ Something went wrong. Please try again!"
-        )
+
+    for model in MODELS:
+        response = None
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://t.me/lom_helper_mushroom_bot",
+                        "X-Title": "LoM Shroom Helper",
+                    },
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": user_message}
+                        ],
+                        "max_tokens": 500,
+                    }
+                )
+            data = response.json()
+            if "choices" in data:
+                reply = data["choices"][0]["message"]["content"]
+                logging.info(f"Success with model: {model}")
+                await update.message.reply_text(reply)
+                return
+            else:
+                logging.warning(f"Model {model} failed: {data.get('error', {}).get('message', 'unknown')}")
+                continue
+        except Exception as e:
+            logging.error(f"Model {model} error: {e}")
+            continue
+
+    await update.message.reply_text(
+        "⚠️ Все AI модели сейчас перегружены. Попробуй через минуту!\n"
+        "⚠️ All AI models are overloaded. Try again in a minute!"
+    )
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
