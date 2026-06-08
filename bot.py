@@ -4,8 +4,7 @@ import httpx
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Настройка логов
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO)
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
@@ -52,9 +51,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
-    
     await update.message.chat.send_action("typing")
-    
+    response = None
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
@@ -62,9 +60,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 headers={
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                     "Content-Type": "application/json",
+                    "HTTP-Referer": "https://t.me/lom_helper_mushroom_bot",
+                    "X-Title": "LoM Shroom Helper",
                 },
                 json={
-                    "model": "meta-llama/llama-3.3-70b-instruct:free",
+                    "model": "google/gemma-3-12b-it:free",
                     "messages": [
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": user_message}
@@ -72,13 +72,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "max_tokens": 500,
                 }
             )
-        
         data = response.json()
+        logging.info(f"OpenRouter response: {data}")
         reply = data["choices"][0]["message"]["content"]
         await update.message.reply_text(reply)
-        
     except Exception as e:
         logging.error(f"Error: {e}")
+        if response is not None:
+            logging.error(f"Status: {response.status_code}, Body: {response.text}")
         await update.message.reply_text(
             "⚠️ Произошла ошибка. Попробуй ещё раз!\n"
             "⚠️ Something went wrong. Please try again!"
@@ -86,11 +87,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
     print("🍄 Shroom Helper запущен!")
     app.run_polling()
-    
