@@ -93,3 +93,4 @@ if __name__ == "__main__":
     
     print("🍄 Shroom Helper запущен!")
     app.run_polling()
+    
