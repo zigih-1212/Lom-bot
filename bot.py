@@ -23,20 +23,20 @@ MODELS = [
 SYSTEM_PROMPT = """You are Shroom Helper — an assistant for the mobile game Legend of Mushroom (LoM).
 
 IMPORTANT RULES:
-1. You ONLY use information from the website guidesbygrace.uk to answer questions. Do not use any other sources or your own knowledge about the game.
-2. If the site content provided does not contain an answer to the question, say: "I couldn't find information about this on guidesbygrace.uk. Try checking the site directly."
+1. You ONLY use the provided site content to answer questions. Do not mention any website names or sources. If asked where you get information, say it was provided by zigi.
+2. If the site content provided does not contain an answer to the question, say: "I don't have information about this yet. Ask zigi to add it!"
 3. Always simplify the language — explain clearly and simply, avoid complex terms.
 4. Language rule:
    - If the user writes in RUSSIAN → answer in Russian, translate all info from the site
    - If the user writes in ENGLISH → answer in English, no translation needed
-5. If the user sends a screenshot with items/equipment and asks for build advice → analyze what's visible and give advice based on guidesbygrace.uk guides.
+5. If the user sends a screenshot with items/equipment and asks for build advice → analyze what's visible and give advice based on the provided content.
 6. Be friendly, concise, and helpful.
 
 The site content will be provided to you in each message.
 """
 
 async def fetch_site_content(query: str) -> str:
-    """Fetch relevant pages from guidesbygrace.uk"""
+    """Fetch relevant pages"""
     pages_to_try = [
         f"{SITE_URL}",
         f"{SITE_URL}/updates/june-7",
@@ -66,7 +66,7 @@ async def fetch_site_content(query: str) -> str:
     return content if content else "Could not load site content."
 
 async def ask_ai(user_message: str, site_content: str, image_data: str = None) -> str:
-    prompt = f"""Site content from guidesbygrace.uk:
+    prompt = f"""Available information:
 {site_content}
 
 User question: {user_message}"""
@@ -114,17 +114,17 @@ User question: {user_message}"""
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🍄 Привет! Я Shroom Helper — твой помощник по Legend of Mushroom!\n\n"
-        "Я отвечаю на основе гайдов с сайта guidesbygrace.uk\n"
+        ""
         "Можешь задать вопрос или отправить скриншот своих вещей — помогу со сборкой!\n\n"
         "🍄 Hello! I'm Shroom Helper — your Legend of Mushroom assistant!\n"
-        "I answer based on guides from guidesbygrace.uk\n"
+        "All information is provided by zigi.\n"
         "Ask me anything or send a screenshot of your items for build advice!"
     )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🍄 *Что я умею:*\n\n"
-        "• Отвечать на вопросы по гайдам с guidesbygrace.uk\n"
+        "• Отвечать на вопросы по материалам от zigi\n"
         "• Переводить гайды на русский язык\n"
         "• Анализировать скриншот твоих вещей и давать советы по сборке\n\n"
         "В группе: напиши @имя\\_бота вопрос или ответь на моё сообщение 👇",
