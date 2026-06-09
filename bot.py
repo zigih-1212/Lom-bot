@@ -312,7 +312,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_approved(user_id):
             await update.message.reply_text(
                 "🍄 Привет! Я Shroom Helper — твой помощник по Legend of Mushroom!\n\n"
-                "Вся информация предоставлена zigi.\n\n"
+                "Вся информация предоставлена @Zigih90.\n\n"
                 "📋 *Доступные команды:*\n"
                 "/menu — главное меню\n"
                 "/classes — обзор классов\n"
@@ -325,7 +325,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text(
                 "🍄 Привет! Для доступа введи код:\n/code ТВОЙ_КОД\n\n"
-                "Или запроси доступ у администратора:\n/request\n\n"
+                "Или запроси доступ у администратора @Zigih90:\n/request\n\n"
                 "🍄 Hello! Enter access code:\n/code YOUR_CODE\n\nOr request access:\n/request"
             )
     except Exception as e:
