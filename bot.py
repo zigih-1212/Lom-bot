@@ -9,6 +9,7 @@ import discord  # Подключаем Дискорд
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+from bs4 import BeautifulSoup  # ← Добавить в самый верх для очистки сайтов
 
 # Настройка логов
 logging.basicConfig(
@@ -163,21 +164,58 @@ async def increment_stats(user_id: int):
 
 # Загрузка локальных файлов знаний
 async def load_knowledge():
+# Получаем ссылку на сайт из настроек хостинга
+GUIDE_URL = os.environ.get("GUIDE_URL")
+
+async def load_knowledge():
     global KNOWLEDGE_TEXT, DYNAMIC_EVENTS
-    try:
-        with open("knowledge.txt", "r", encoding="utf-8") as f:
-            KNOWLEDGE_TEXT = f.read()
-        logger.info("Knowledge base loaded")
-    except FileNotFoundError:
-        KNOWLEDGE_TEXT = ""
     
+    # 1. СНАЧАЛА ЗАГРУЖАЕМ СВЕЖИЕ ГАЙДЫ ИЗ ИНТЕРНЕТА (Если указана ссылка)
+    if GUIDE_URL:
+        logger.info(f"Пробую обновить гайды с сайта: {GUIDE_URL}")
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                response = await client.get(GUIDE_URL)
+                
+                if response.status_code == 200:
+                    # Если ссылка на Google Doc с экспортом в txt, очистка не нужна
+                    if "docs.google.com" in GUIDE_URL and "format=txt" in GUIDE_URL:
+                        KNOWLEDGE_TEXT = response.text
+                    else:
+                        # Если это обычный сайт, очищаем его от HTML-тегов, скриптов и рекламы
+                        soup = BeautifulSoup(response.text, 'html.parser')
+                        for garbage in soup(["script", "style", "nav", "footer", "header"]):
+                            garbage.extract()  # Удаляем мусорные блоки сайта
+                        
+                        # Забираем чистый текст
+                        KNOWLEDGE_TEXT = soup.get_text(separator="\n")
+                    
+                    # Сохраняем скачанный текст в файл на всякий случай (бэкап)
+                    with open("knowledge.txt", "w", encoding="utf-8") as f:
+                        f.write(KNOWLEDGE_TEXT)
+                    logger.info("✓ База знаний успешно обновлена напрямую с сайта!")
+                else:
+                    logger.warning(f"Сайт ответил ошибкой {response.status_code}. Использую старую копию.")
+        except Exception as e:
+            logger.error(f"Не удалось скачать гайды из интернета ({e}). Загружаю локальный файл.")
+
+    # 2. ЕСЛИ ИНТЕРНЕТА НЕТ ИЛИ ССЫЛКА НЕ НАСТРОЕНА — ЧИТАЕМ ИЗ ФАЙЛА
+    if not KNOWLEDGE_TEXT:
+        try:
+            with open("knowledge.txt", "r", encoding="utf-8") as f:
+                KNOWLEDGE_TEXT = f.read()
+            logger.info("База знаний загружена из локального файла")
+        except FileNotFoundError:
+            KNOWLEDGE_TEXT = "База знаний пуста. Настройте GUIDE_URL."
+
+    # 3. ЗАГРУЖАЕМ ИВЕНТЫ (Из Дискорда)
     try:
         with open("latest_events.txt", "r", encoding="utf-8") as f:
             DYNAMIC_EVENTS = f.read()
-        logger.info("Latest events loaded from file")
+        logger.info("Последние ивенты загружены из файла")
     except FileNotFoundError:
         DYNAMIC_EVENTS = "Актуальных ивентов в базе пока нет."
-
+        
 def check_rate_limit(user_id: int):
     now = datetime.now()
     if user_id not in USER_COOLDOWNS: USER_COOLDOWNS[user_id] = []
