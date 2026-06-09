@@ -2,14 +2,19 @@ import os
 import re
 import base64
 import logging
+import json
 import httpx
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 logging.basicConfig(level=logging.INFO)
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
+ACCESS_CODE = os.environ.get("ACCESS_CODE", "shroom2024")
+
+APPROVED_USERS_FILE = "approved_users.json"
 
 MODELS = [
     "google/gemma-4-31b-it:free",
@@ -31,6 +36,25 @@ RULES:
 7. Be friendly, helpful and use 🍄 occasionally.
 8. When answering, summarize and explain in your own simple words — do not just copy-paste from the knowledge base.
 """
+
+def load_approved_users() -> set:
+    try:
+        with open(APPROVED_USERS_FILE, "r") as f:
+            return set(json.load(f))
+    except:
+        return set()
+
+def save_approved_users(users: set):
+    try:
+        with open(APPROVED_USERS_FILE, "w") as f:
+            json.dump(list(users), f)
+    except Exception as e:
+        logging.error(f"Failed to save users: {e}")
+
+def is_approved(user_id: int) -> bool:
+    if user_id == ADMIN_ID:
+        return True
+    return user_id in load_approved_users()
 
 def load_knowledge() -> str:
     try:
@@ -85,31 +109,171 @@ User question: {user_message}"""
     return None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🍄 Привет! Я Shroom Helper — твой помощник по Legend of Mushroom!\n\n"
-        "Вся информация предоставлена zigi.\n"
-        "Задай вопрос или отправь скриншот своих вещей — помогу со сборкой!\n\n"
-        "🍄 Hello! I'm Shroom Helper — your Legend of Mushroom assistant!\n"
-        "All information is provided by zigi.\n"
-        "Ask me anything or send a screenshot of your items for build advice!"
-    )
+    user_id = update.effective_user.id
+    if is_approved(user_id):
+        await update.message.reply_text(
+            "🍄 Привет! Я Shroom Helper — твой помощник по Legend of Mushroom!\n\n"
+            "Вся информация предоставлена zigi.\n"
+            "Задай вопрос или отправь скриншот своих вещей — помогу со сборкой!\n\n"
+            "🍄 Hello! I'm Shroom Helper — your Legend of Mushroom assistant!\n"
+            "All information is provided by zigi.\n"
+            "Ask me anything or send a screenshot of your items for build advice!"
+        )
+    else:
+        await update.message.reply_text(
+            "🍄 Привет! Для доступа к боту введи код командой:\n/code ТВОЙ_КОД\n\n"
+            "Или дождись одобрения от администратора.\n\n"
+            "🍄 Hello! To access the bot enter the code:\n/code YOUR_CODE\n\n"
+            "Or wait for admin approval."
+        )
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🍄 *Что я умею:*\n\n"
-        "• Отвечать на вопросы по игре\n"
-        "• Помогать с выбором класса и билда\n"
-        "• Анализировать скриншот вещей и давать советы по сборке\n"
-        "• Рассказывать об ивентах и механиках\n\n"
-        "В группе: напиши @имя\\_бота вопрос или ответь на моё сообщение 👇",
-        parse_mode="Markdown"
-    )
+async def code_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    user_name = update.effective_user.full_name
+
+    if is_approved(user_id):
+        await update.message.reply_text("✅ У тебя уже есть доступ! / You already have access!")
+        return
+
+    if not context.args:
+        await update.message.reply_text("Введи код: /code ТВОЙ_КОД")
+        return
+
+    entered_code = context.args[0]
+    if entered_code == ACCESS_CODE:
+        approved = load_approved_users()
+        approved.add(user_id)
+        save_approved_users(approved)
+        await update.message.reply_text(
+            "✅ Код верный! Добро пожаловать 🍄\n"
+            "Теперь можешь задавать вопросы!\n\n"
+            "✅ Correct code! Welcome 🍄"
+        )
+        if ADMIN_ID:
+            try:
+                await context.bot.send_message(
+                    ADMIN_ID,
+                    f"✅ Новый пользователь получил доступ по коду:\n👤 {user_name}\n🆔 {user_id}"
+                )
+            except:
+                pass
+    else:
+        await update.message.reply_text("❌ Неверный код. / Wrong code.")
+        if ADMIN_ID:
+            try:
+                keyboard = [[
+                    InlineKeyboardButton("✅ Разрешить", callback_data=f"approve_{user_id}"),
+                    InlineKeyboardButton("❌ Отклонить", callback_data=f"deny_{user_id}")
+                ]]
+                await context.bot.send_message(
+                    ADMIN_ID,
+                    f"⚠️ Попытка входа с неверным кодом:\n👤 {user_name}\n🆔 {user_id}\n\nРазрешить доступ?",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+            except:
+                pass
+
+async def request_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    user_name = update.effective_user.full_name
+
+    if is_approved(user_id):
+        await update.message.reply_text("✅ У тебя уже есть доступ!")
+        return
+
+    if not ADMIN_ID:
+        await update.message.reply_text("❌ Запросы недоступны. Используй /code")
+        return
+
+    keyboard = [[
+        InlineKeyboardButton("✅ Разрешить", callback_data=f"approve_{user_id}"),
+        InlineKeyboardButton("❌ Отклонить", callback_data=f"deny_{user_id}")
+    ]]
+    try:
+        await context.bot.send_message(
+            ADMIN_ID,
+            f"🔔 Запрос доступа:\n👤 {user_name}\n🆔 {user_id}",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        await update.message.reply_text("✅ Запрос отправлен администратору! Ожидай одобрения.")
+    except:
+        await update.message.reply_text("❌ Не удалось отправить запрос.")
+
+async def approve_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+    if not context.args:
+        await update.message.reply_text("Использование: /approve USER_ID")
+        return
+    try:
+        target_id = int(context.args[0])
+        approved = load_approved_users()
+        approved.add(target_id)
+        save_approved_users(approved)
+        await update.message.reply_text(f"✅ Пользователь {target_id} одобрен!")
+        try:
+            await context.bot.send_message(target_id, "✅ Администратор одобрил твой доступ! Добро пожаловать 🍄")
+        except:
+            pass
+    except:
+        await update.message.reply_text("❌ Неверный ID")
+
+async def revoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+    if not context.args:
+        await update.message.reply_text("Использование: /revoke USER_ID")
+        return
+    try:
+        target_id = int(context.args[0])
+        approved = load_approved_users()
+        approved.discard(target_id)
+        save_approved_users(approved)
+        await update.message.reply_text(f"✅ Доступ пользователя {target_id} отозван!")
+    except:
+        await update.message.reply_text("❌ Неверный ID")
+
+async def users_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+    approved = load_approved_users()
+    if approved:
+        await update.message.reply_text(f"👥 Одобренные пользователи ({len(approved)}):\n" + "\n".join(str(u) for u in approved))
+    else:
+        await update.message.reply_text("Нет одобренных пользователей.")
+
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    data = query.data
+    if data.startswith("approve_"):
+        target_id = int(data.split("_")[1])
+        approved = load_approved_users()
+        approved.add(target_id)
+        save_approved_users(approved)
+        await query.edit_message_text(f"✅ Пользователь {target_id} одобрен!")
+        try:
+            await context.bot.send_message(target_id, "✅ Администратор одобрил твой доступ! Добро пожаловать 🍄")
+        except:
+            pass
+    elif data.startswith("deny_"):
+        target_id = int(data.split("_")[1])
+        await query.edit_message_text(f"❌ Пользователь {target_id} отклонён.")
+        try:
+            await context.bot.send_message(target_id, "❌ Администратор отклонил твой запрос.")
+        except:
+            pass
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if message is None:
         return
 
+    user_id = update.effective_user.id
     bot_username = context.bot.username
     is_private = message.chat.type == "private"
     is_mention = message.text and f"@{bot_username}" in message.text
@@ -121,6 +285,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     has_photo = message.photo is not None and len(message.photo) > 0
 
     if not is_private and not is_mention and not is_reply_to_bot:
+        return
+
+    if not is_approved(user_id):
+        await message.reply_text(
+            "🔒 У тебя нет доступа.\n"
+            "Введи код: /code ТВОЙ_КОД\n"
+            "Или запроси доступ: /request\n\n"
+            "🔒 No access.\nEnter code: /code YOUR_CODE\nOr request: /request"
+        )
         return
 
     user_message = message.text or message.caption or ""
@@ -145,7 +318,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await message.chat.send_action("typing")
-
     knowledge = load_knowledge()
     reply = await ask_ai(user_message, knowledge, image_data)
 
@@ -160,7 +332,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("code", code_command))
+    app.add_handler(CommandHandler("request", request_command))
+    app.add_handler(CommandHandler("approve", approve_command))
+    app.add_handler(CommandHandler("revoke", revoke_command))
+    app.add_handler(CommandHandler("users", users_command))
+    app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(MessageHandler(filters.PHOTO, handle_message))
     print("🍄 Shroom Helper запущен!")
