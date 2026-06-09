@@ -214,7 +214,6 @@ async def load_knowledge():
         logger.info("Последние ивенты загружены из файла")
     except FileNotFoundError:
         DYNAMIC_EVENTS = "Актуальных ивентов в базе пока нет."в базе пока нет."
-        
 def check_rate_limit(user_id: int):
     now = datetime.now()
     if user_id not in USER_COOLDOWNS: USER_COOLDOWNS[user_id] = []
