@@ -210,7 +210,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if is_approved(user_id):
         await update.message.reply_text(
-            "🍄 Привет! Я Shroom Helper — твой помощник по Legend of Mushroom!\n\n",
+            "🍄 Привет! Я Shroom Helper — твой помощник по Legend of Mushroom!\n\n"
             "Вся информация предоставлена zigi.\n"
             "Задай вопрос, отправь скриншот или открой меню 👇\n\n"
 "📋 *Доступные команды:*\n"
@@ -218,6 +218,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 "/classes — обзор классов\n"
 "/builds — сборки по классам\n"
 "/feedback ТЕКСТ — отправить отзыв\n"
+            
             reply_markup=main_menu_keyboard()
         )
         parse_mode="Markdown"
