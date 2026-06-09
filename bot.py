@@ -164,11 +164,10 @@ async def increment_stats(user_id: int):
 
 # Загрузка локальных файлов знаний
 async def load_knowledge():
-# Получаем ссылку на сайт из настроек хостинга
-GUIDE_URL = os.environ.get("GUIDE_URL")
-
-async def load_knowledge():
     global KNOWLEDGE_TEXT, DYNAMIC_EVENTS
+    
+    # Перенесли внутрь функции и сделали правильный отступ в 4 пробела!
+    GUIDE_URL = os.environ.get("GUIDE_URL")
     
     # 1. СНАЧАЛА ЗАГРУЖАЕМ СВЕЖИЕ ГАЙДЫ ИЗ ИНТЕРНЕТА (Если указана ссылка)
     if GUIDE_URL:
@@ -214,7 +213,7 @@ async def load_knowledge():
             DYNAMIC_EVENTS = f.read()
         logger.info("Последние ивенты загружены из файла")
     except FileNotFoundError:
-        DYNAMIC_EVENTS = "Актуальных ивентов в базе пока нет."
+        DYNAMIC_EVENTS = "Актуальных ивентов в базе пока нет."в базе пока нет."
         
 def check_rate_limit(user_id: int):
     now = datetime.now()
