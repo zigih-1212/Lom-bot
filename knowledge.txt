@@ -1,0 +1,198 @@
+================================================================
+БАЗА ЗНАНИЙ — Legend of Mushroom (LoM)
+Все данные предоставлены zigi
+================================================================
+
+
+================================================================
+ОБЩАЯ ИНФОРМАЦИЯ ОБ ИГРЕ
+================================================================
+
+Legend of Mushroom — мобильная RPG игра. Автор гайдов — Grace из EUEN-203, играет более года на классах Plume, Warbringer и Supreme Spirit.
+
+Классы делятся на 4 базовых: Warrior, Archer, Mage, Spirit Channeler (Tamer).
+На уровне 30 происходит первое разветвление, на уровне 50 — второе (финальное).
+
+
+================================================================
+КЛАССЫ — ОБЗОР
+================================================================
+
+=== WARRIOR (Воин) ===
+Работает на "Counterstrike" — урон в ответ на удары врага.
+Отлично работает против Лучников (быстрые атаки = много контрударов).
+Ключевые статы: ATK, Counter DMG, Crit DMG, DEF
+Снаряжение: Counterstrike / Crit Rate
+
+--- MARTIAL SAGE (Рыцарь) ---
+Роль: Regen Tank (Танк с регенерацией)
+Пассивы класса: Периодический щит, регенерация HP, HP DMG
+Сильные стороны: Высокая выживаемость, силён против большинства противников
+Слабые стороны: Требует высокого HP и защитных статов, класс середины/поздней игры
+НЕ рекомендуется до Eternal Gear и 25k+ Divine Feather Coins
+
+Ключевые статы: HP, Regen, Damage Resistances/Crit Res, Basic ATK DMG
+Снаряжение: Counterstrike & Regen
+Prayer Statue: Global HP x5
+Back Acc приоритет: HP > ATK > DEF
+Soul Levels приоритет: HP > Crit Res > ATK/Batk > DEF
+Авиан: Honeypot Warrior (Bee) — урон Max HP DMG
+Аффиксы авиана: Regen Ability, Barrel Dodge, Punch Counter, Enhanced Attack, Wind Tear, No Speeding, Natural Burst (после 130 уровня)
+Руны артефакта: Basic ATK x4 + Crit Res x2 (атака) / Crit Res x4 + Basic ATK x2 (защита)
+PVP: строй HP + crit resist для выносливости
+Против Regen: строй HP, DEF + источники HP DMG
+
+--- WARBRINGER ---
+Роль: Танковый DPS
+Пассивы: Огромный урон при получении удара, масштабируется от DEF и потерянного HP
+Сильные стороны: Очень силён против Лучников и Beastmaster
+Слабые стороны: Слабее против Танков и Магов (медленный урон = мало контрударов)
+Можно играть сразу с начала игры
+
+Ключевые статы: ATK, Counter DMG, Crit DMG, DEF, Damage Resistances/Crit Res
+Снаряжение: Counterstrike & Crit Rate
+Prayer Statue: Global Counter DMG x5
+Back Acc приоритет: ATK > DEF > HP
+Soul Levels приоритет: ATK/Counter DMG/Crit DMG > DEF > HP/Crit Res
+Авиан: Lunar Sprite — повышает DEF, ATK и лечение
+Аффиксы: Rage Bonus, Reflect Counter, Barrel Dodge, No Speeding, Natural Burst
+Руны: Crit DMG x4 + Crit Res x2
+PVP: строй атакующие статы + балансируй с резистами
+
+
+=== ARCHER (Лучник) ===
+Работает на Combo — дополнительные выстрелы за атаку, очень высокая скорость атаки.
+Хорош против Магов (много урона пока маг не успел ответить).
+Лучший PVE класс — highly recommended в Early Game.
+Ключевые статы: ATK, Combo DMG, Crit DMG, ATK SPD
+Снаряжение: Combo / Crit Rate
+
+--- SACRED HUNTER ---
+Роль: Гибридный Танк
+Пассивы: Периодическая пауза регена скилла врага, HP DMG при базовых атаках, ATK растёт от критов
+Сильные стороны: Высокая выживаемость, силён против Магов и Martial Sage
+Слабые стороны: Требует высокого HP, класс середины/поздней игры
+НЕ рекомендуется до Eternal Gear и 25k+ Divine Feather Coins
+
+Ключевые статы: HP, Regen, Damage Resistances/Crit Res, Basic ATK DMG, Crit Rate
+Снаряжение: Evasion & Regen / Combo & Regen / Crit & Regen
+Prayer Statue: Global HP x5
+Back Acc приоритет: HP > ATK > DEF
+Soul Levels приоритет: HP > Crit Res > ATK/Batk > DEF
+Авиан: Honeypot Warrior (Bee) — HP DMG
+Аффиксы: Regen Ability, Barrel Dodge, Enhanced Attack, Wind Tear, No Speeding, Natural Burst
+Руны: Basic ATK x4 + Crit Res x2 (атака) / Crit Res x4 + Basic ATK x2 (защита)
+
+--- PLUME MONARCH ---
+Роль: Glass Cannon DPS
+Пассивы: Игнорирует Evasion во время скилла, всё больше и больше выстрелов
+Сильные стороны: Силён против Магов и Танков
+Слабые стороны: Слабее против Warbringer из-за быстрых атак. Фатально уязвим к Disarm
+Можно играть сразу — HIGHLY RECOMMENDED из-за преимущества в PVE
+
+Ключевые статы: ATK, Combo DMG, Crit DMG, ATK SPD, Damage Resistances/Crit Res
+Снаряжение: Combo & Crit Rate
+Prayer Statue: Global Combo DMG x5
+Back Acc приоритет: ATK > HP > DEF
+Soul Levels приоритет: ATK/Combo DMG/Crit DMG > HP > Crit Res > DEF
+Авиан: зависит от ситуации с Disarm — Sunshine Bringer (против Disarm), Firefly/Cloud/Anubis (если не нужно)
+Аффиксы: Rage Bonus, Shroom Combo, Barrel Dodge, No Speeding, Natural Burst, Debuff Immunity (если нужно), Multiple Shots (против Regen)
+Руны: Crit DMG x4 + Crit Res x2
+PVP: строй атакующие статы + скорость атаки, добавляй резисты и HP по необходимости
+Против Regen: высокий ATK, Evasion/Healing для выносливости
+
+
+=== MAGE (Маг) ===
+Урон через Skills — большой, редкий, взрывной урон.
+В начале игры (до уровня 70) один из лучших классов.
+Хорош против Воинов (мало контрударов), плох против быстрых классов.
+Ключевые статы: ATK, Skill DMG, Skill Crit DMG
+Снаряжение: Skill Crit / Stun
+
+--- PROPHET ---
+Роль: Высокоурон + Танк
+Пассивы: Ломает щит противника во время скилла, много источников регена энергии
+Сильные стороны: Высокая выживаемость при вложении, силён против Warbringer и Танков
+Слабые стороны: Ограничен против SH и быстрых атакующих
+
+Ключевые статы: ATK, Skill/Skill Crit DMG, HP, Regen, Damage Resistances
+Снаряжение: Skill Crit & Regen / Skill Crit & Evasion / Skill Crit & Stun
+Prayer Statue: Global ATK x5
+Back Acc приоритет: ATK > HP > DEF
+Soul Levels приоритет: ATK/Crit DMG > HP/Crit Res > Batk > DEF
+Авиан: Pumpkin Witch (высокий burst) / Dense Cloud / Magic Cat (долгий бой)
+Аффиксы: Inert Gas, Multi-Talented, Self-Centered, Barrel Dodge, Regen Ability, Wind Tear, Rage Slash, No Speeding, Natural Burst
+Руны: Skill DMG x4 + Crit Res x2 (атака) / Crit Res x4 + Skill DMG x2 (защита)
+
+--- DARKLORD ---
+Роль: One-Shot Heavy Hitter
+Пассивы: Всё больше и больше урона!
+Сильные стороны: Очень силён в начале-середине игры при возможности One-Shot
+Слабые стороны: Слабее против Лучников, со временем One-Shot становится труднее
+
+Ключевые статы: ATK, Skill DMG, Skill Crit DMG, Stun
+Снаряжение: Skill Crit & Stun
+Prayer Statue: Global ATK x5
+Back Acc приоритет: ATK > HP > DEF
+Soul Levels приоритет: ATK/Crit DMG/Batk DMG > HP > Crit Res/DEF
+Авиан: Pumpkin Witch — больше урона скилла
+Аффиксы: Talent Skill, Inert Gas, Multi-Talented, Self-Centered
+Руны: Skill DMG x4 + Crit Res x2
+PVP: максимальный ATK, ATK SPD для достижения pre-blitz
+
+
+=== SPIRIT CHANNELER / TAMER ===
+Урон через питомцев (Pals). Похож на Мага, но питомцы вместо скиллов.
+Хорош после разблокировки Розовых питомцев.
+Ключевые статы: ATK, Pal DMG, Pal Crit DMG, HP
+Снаряжение: Pal Combo / Pal Crit
+
+--- BEASTMASTER ---
+Роль: Glass Cannon DPS
+Пассивы: Игнорирует Evasion во время скилла, больше урона питомцев и критов
+Сильные стороны: Силён против Магов и Танков, часто бьёт Лучников
+Слабые стороны: Быстрые атаки питомцев = много контрударов от Warbringer
+Рекомендуется ждать уровня 200+ Purple/Yellow питомцев
+
+Ключевые статы: ATK, Pal DMG, Pal Crit DMG, Damage Resistances, Pal ATK SPD
+Снаряжение: Pal Combo & Pal Crit
+Prayer Statue: Global ATK x5
+Back Acc приоритет: ATK > HP > DEF
+Soul Levels приоритет: Crit Res/ATK > HP > Counter DMG > DEF
+Авиан: Yoghurt (масштабирует Crit/Combo DMG) / Smart Assistant / Puppy Gaze (Pal ATK SPD)
+Аффиксы: Altruism, Same Boat, Self Sacrifice, Enhanced Go!, Barrel Dodge, No Speeding
+Руны: Pal DMG x4 + Crit Res x2
+
+--- SUPREME SPIRIT (Necro) ---
+Роль: DPS Tank
+Пассивы: Быстрый HP DMG во время скилла, множество эффектов от расстановки питомцев
+Сильные стороны: Быстрее наносит урон чем другие Танки, очень силён против Танков
+Слабые стороны: Меньше танковых пассивов — труднее использовать универсально
+НЕ рекомендуется до Eternal Gear из-за зависимости от регена
+
+Ключевые статы: HP, Regen, Damage Resistances/Crit Res, Basic ATK DMG
+Снаряжение: Pal Combo & Regen (атака) / Evasion & Regen (защита)
+Prayer Statue: Global HP x5
+Back Acc приоритет: HP > ATK > DEF
+Soul Levels приоритет: HP > Crit Res > ATK/Batk > DEF
+Авиан: Diety / Dense Cloud / Puppy Gaze
+Аффиксы: Regen Ability, Barrel Dodge, Enhanced Attack, Wind Tear, No Speeding, Natural Burst
+Руны: Basic ATK x4 + Crit Res x2 (защита) / Crit Res x4 + Basic ATK x2 (защита)
+PVP: строй HP + crit resist, чем больше HP/Resistances/Ignores тем лучше выживаемость
+
+
+================================================================
+СОВЕТЫ ДЛЯ НОВИЧКОВ
+================================================================
+
+- Archer (Лучник) — лучший класс для PVE и для начала игры
+- Вступайте в альянс как можно раньше
+- На уровне 30 происходит первое разветвление классов
+- На уровне 50 — второе (финальное) разветвление
+- Eternal Gear и 25k+ Divine Feather Coins нужны для Tank классов (MS, SH)
+- Plume Monarch рекомендуется начинать сразу — лучший для PVE
+- Warbringer можно начинать сразу
+
+================================================================
+КОНЕЦ БАЗЫ ЗНАНИЙ
+================================================================
