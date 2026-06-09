@@ -257,3 +257,208 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
         res = await try_model(model)
         if res: return res
     return None
+# Клавиатуры интерфейса
+def main_menu_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(UI_TEXTS["classes_btn"], callback_data="menu_classes"),
+         InlineKeyboardButton(UI_TEXTS["builds_btn"], callback_data="menu_builds")],
+        [InlineKeyboardButton(UI_TEXTS["pals_btn"], callback_data="menu_pals"),
+         InlineKeyboardButton(UI_TEXTS["events_btn"], callback_data="menu_events")],
+        [InlineKeyboardButton(UI_TEXTS["beginner_btn"], callback_data="menu_beginner"),
+         InlineKeyboardButton(UI_TEXTS["help_btn"], callback_data="menu_help")],
+    ])
+
+def classes_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🗡️ Воин", callback_data="class_warrior"),
+         InlineKeyboardButton("🏹 Лучник", callback_data="class_archer")],
+        [InlineKeyboardButton("🔮 Маг", callback_data="class_mage"),
+         InlineKeyboardButton("🐉 Укротитель", callback_data="class_tamer")],
+        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")],
+    ])
+
+def warrior_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🛡️ Боевой Мудрец", callback_data="class_martial_sage"),
+         InlineKeyboardButton("⚔️ Вестник Войны", callback_data="class_warbringer")],
+        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")],
+    ])
+
+def archer_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🌿 Священный Охотник", callback_data="class_sacred_hunter"),
+         InlineKeyboardButton("🪶 Повелитель Перьев", callback_data="class_plume")],
+        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")],
+    ])
+
+def mage_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✨ Пророк", callback_data="class_prophet"),
+         InlineKeyboardButton("🌑 Тёмный Владыка", callback_data="class_darklord")],
+        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")],
+    ])
+
+def tamer_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="class_beastmaster"),
+         InlineKeyboardButton("💀 Верховный Дух", callback_data="class_supreme")],
+        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")],
+    ])
+
+CLASS_INFO = {
+    "class_warrior": ("⚔️ Воин", "Работает на контрударах.\n\nКлючевые статы: Атака, Урон контрудара, Урон крита, Защита\nСнаряжение: Контрудар / Крит шанс", warrior_keyboard),
+    "class_archer": ("🏹 Лучник", "Работает на комбо. Отличен для начала игры!\n\nКлючевые статы: Атака, Урон комбо, Урон крита, Скорость атаки\nСнаряжение: Комбо / Крит шанс", archer_keyboard),
+    "class_mage": ("🔮 Маг", "Большой взрывной урон через скиллы.\n\nКлючевые статы: Атака, Урон скилла, Крит урон скилла\nСнаряжение: Крит скилла / Оглушение", mage_keyboard),
+    "class_tamer": ("🐉 Укротитель", "Урон через питомцев.\n\nКлючевые статы: Атака, Урон питомца, Крит урон питомца\nСнаряжение: Комбо питомца / Крит питомца", tamer_keyboard),
+    "class_martial_sage": ("🛡️ Боевой Мудрец", "Роль: Танк с регенерацией\nСнаряжение: Контрудар & Регенерация", None),
+    "class_warbringer": ("⚔️ Вестник Войны", "Роль: Танковый DPS\nСнаряжение: Контрудар & Крит шанс", None),
+    "class_sacred_hunter": ("🌿 Священный Охотник", "Роль: Гибридный Танк\nСнаряжение: Уклонение & Регенерация", None),
+    "class_plume": ("🪶 Повелитель Перьев", "Роль: Стеклянная пушка DPS\nСнаряжение: Комбо & Крит шанс", None),
+    "class_prophet": ("✨ Пророк", "Роль: Высокоурон + Танк\nСнаряжение: Крит скилла & Регенерация", None),
+    "class_darklord": ("🌑 Тёмный Владыка", "Роль: Убийца одним ударом\nСнаряжение: Крит скилла & Оглушение", None),
+    "class_beastmaster": ("🐾 Повелитель Зверей", "Роль: Стеклянная пушка DPS\nСнаряжение: Комбо питомца & Крит питомца", None),
+    "class_supreme": ("💀 Верховный Дух", "Роль: DPS Танк\nСнаряжение: Комбо питомца & Регенерация", None)
+}
+
+# Обработчики Телеграм-команд
+async def check_user_access(update: Update) -> bool:
+    if await is_approved(update.effective_user.id): return True
+    await update.effective_message.reply_text(UI_TEXTS["no_access_msg"])
+    return False
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id == ADMIN_ID: await save_approved_user(user_id, update.effective_user.username or "")
+    if await is_approved(user_id): await send_welcome(context.bot, user_id)
+    else: await update.message.reply_text(UI_TEXTS["no_access_msg"])
+
+async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_user_access(update): return
+    await update.message.reply_text(UI_TEXTS["menu_title"], reply_markup=main_menu_keyboard())
+
+async def classes_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_user_access(update): return
+    await update.message.reply_text(UI_TEXTS["classes_title"], reply_markup=classes_keyboard())
+
+async def builds_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_user_access(update): return
+    await update.message.reply_text(UI_TEXTS["builds_title"] + "Выберите нужный вам класс через /classes для деталей!")
+
+async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_user_access(update): return
+    if not context.args:
+        await update.message.reply_text("Напишите текст. Пример: `/feedback Привет`", parse_mode="Markdown")
+        return
+    if ADMIN_ID:
+        try: await context.bot.send_message(ADMIN_ID, f"📩 Отзыв от @{update.effective_user.username}:\n\n{' '.join(context.args)}")
+        except: pass
+    await update.message.reply_text("Спасибо за отзыв! 🍄")
+
+async def code_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if await is_approved(user_id): return
+    if context.args and context.args[0] == ACCESS_CODE:
+        await save_approved_user(user_id, update.effective_user.username or "")
+        await update.message.reply_text("✅ Доступ успешно предоставлен.")
+        await send_welcome(context.bot, user_id)
+    else: await update.message.reply_text("❌ Неверный код.")
+
+async def request_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if await is_approved(user_id): return
+    await update.message.reply_text("⏳ Запрос отправлен админу.")
+    if ADMIN_ID:
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("✅ Ок", callback_data=f"adm_ok_{user_id}"), InlineKeyboardButton("❌ Нет", callback_data=f"adm_no_{user_id}")]])
+        try: await context.bot.send_message(ADMIN_ID, f"🔔 Запрос доступа от @{update.effective_user.username or user_id}:", reply_markup=kb)
+        except: pass
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    user_id = update.effective_user.id
+
+    if data.startswith("adm_ok_") or data.startswith("adm_no_"):
+        if user_id != ADMIN_ID: return
+        t_id = int(data.split("_")[2])
+        if data.startswith("adm_ok_"):
+            await save_approved_user(t_id)
+            await query.edit_message_text(f"✅ Пользователь {t_id} одобрен.")
+            try: await context.bot.send_message(t_id, "🎉 Доступ одобрен! Нажмите /start")
+            except: pass
+        else: await query.edit_message_text(f"❌ Отклонено.")
+        return
+
+    if not await is_approved(user_id): return
+
+    if data == "menu_main": await query.edit_message_text(UI_TEXTS["menu_title"], reply_markup=main_menu_keyboard())
+    elif data == "menu_classes": await query.edit_message_text(UI_TEXTS["classes_title"], reply_markup=classes_keyboard())
+    elif data == "menu_beginner": await query.edit_message_text(UI_TEXTS["beginner_title"], parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
+    elif data == "menu_pals": await query.edit_message_text(UI_TEXTS["pals_title"], reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
+    elif data == "menu_events": await query.edit_message_text(UI_TEXTS["events_title"], reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
+    elif data == "menu_help": await query.edit_message_text(UI_TEXTS["help_title"], reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
+    elif data in CLASS_INFO:
+        title, text, kb_f = CLASS_INFO[data]
+        kb = kb_f() if kb_f else InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")]])
+        await query.edit_message_text(f"*{title}*\n\n{text}", parse_mode="Markdown", reply_markup=kb)
+
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not await is_approved(user_id): return
+    is_limited, secs = check_rate_limit(user_id)
+    if is_limited:
+        await update.message.reply_text(UI_TEXTS["rate_limit_msg"].format(seconds=secs))
+        return
+
+    user_text = update.message.text or update.message.caption or ""
+    image_data = None
+
+    if update.message.photo:
+        photo_file = await update.message.photo[-1].get_file()
+        photo_bytes = await photo_file.download_as_bytearray()
+        image_data = base64.b64encode(photo_bytes).decode("utf-8")
+        if not user_text: user_text = "Проанализируй скриншот снаряжения."
+
+    if not user_text: return
+    status_msg = await update.message.reply_text("🍄 Думаю...")
+    await add_conversation(user_id, "user", user_text)
+    
+    ai_response = await ask_ai(user_text, user_id, image_data)
+    if ai_response:
+        await add_conversation(user_id, "assistant", ai_response)
+        await increment_stats(user_id)
+        await status_msg.edit_text(ai_response)
+    else: await status_msg.edit_text("❌ Ошибка ИИ. Попробуйте позже.")
+
+# Фоновая инициализация
+async def post_init(application):
+    await init_db()
+    await load_knowledge()
+    
+    # Запуск Дискорд-клиента параллельно
+    if DISCORD_TOKEN and DISCORD_CHANNEL_ID:
+        discord_client = DiscordBridge()
+        application.bot_data["discord_client"] = discord_client
+        asyncio.create_task(discord_client.start(DISCORD_TOKEN))
+        logger.info("✓ Дискорд-мост успешно запущен в фоне!")
+    else:
+        logger.warning("Дискорд токены не найдены. Мост отключен.")
+
+def main():
+    if not TELEGRAM_TOKEN: return
+    application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
+
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("menu", menu_command))
+    application.add_handler(CommandHandler("classes", classes_command))
+    application.add_handler(CommandHandler("builds", builds_command))
+    application.add_handler(CommandHandler("code", code_command))
+    application.add_handler(CommandHandler("request", request_command))
+    application.add_handler(CommandHandler("feedback", feedback_command))
+    application.add_handler(CallbackQueryHandler(button_handler))
+    application.add_handler(MessageHandler(filters.TEXT | filters.PHOTO, message_handler))
+
+    application.run_polling()
+
+if __name__ == '__main__':
+    main()
