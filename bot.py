@@ -1,4 +1,4 @@
-import os
+ import os
 import re
 import base64
 import logging
@@ -11,16 +11,6 @@ logging.basicConfig(level=logging.INFO)
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
-# Pages to fetch from the site via jina.ai reader
-SITE_PAGES = [
-    "https://guidesbygrace.uk",
-    "https://guidesbygrace.uk/updates/june-7",
-    "https://guidesbygrace.uk/classes",
-    "https://guidesbygrace.uk/builds",
-    "https://guidesbygrace.uk/guides",
-    "https://guidesbygrace.uk/events",
-]
-
 MODELS = [
     "google/gemma-4-31b-it:free",
     "google/gemma-4-26b-a4b-it:free",
@@ -32,42 +22,27 @@ MODELS = [
 SYSTEM_PROMPT = """You are Shroom Helper — a helpful assistant for the mobile game Legend of Mushroom (LoM).
 
 RULES:
-1. Answer ONLY based on the game content provided below. Do not use outside knowledge.
+1. A knowledge base is provided below. Search it SEMANTICALLY — meaning understand what the user is asking about even if they use different words, synonyms, or ask vaguely. For example: "what class should I pick" → look for class descriptions and recommendations. "I die too fast" → look for survivability, HP, tank builds. "best for beginners" → look for early game recommendations.
 2. Never mention any website, source, or URL. If asked where you get info, say "zigi provided this information".
-3. If the provided content doesn't have the answer, say: in Russian — "У меня пока нет такой информации. Спроси у zigi — он добавит!", in English — "I don't have that info yet. Ask zigi to add it!"
-4. Language: detect user's language and reply in the SAME language. Russian users get Russian replies. English users get English replies.
-5. Simplify complex explanations — use plain, friendly language.
-6. If user sends a screenshot with items/gear, analyze what's visible and give build advice based on the provided content.
-7. Be friendly, concise, and helpful. Use 🍄 emoji occasionally.
+3. Only if the knowledge base truly has NO relevant info on the topic, say: in Russian — "У меня пока нет такой информации. Спроси у zigi — он добавит!", in English — "I don't have that info yet. Ask zigi to add it!"
+4. Language: detect user's language and reply in the SAME language. Russian → Russian. English → English. Translate any English terms from the knowledge base into Russian when answering Russian users.
+5. Simplify explanations — use plain, friendly language. Avoid technical jargon unless necessary.
+6. If user sends a screenshot with items/gear → analyze what's visible and give build advice based on the knowledge base.
+7. Be friendly, helpful and use 🍄 occasionally.
+8. When answering, summarize and explain in your own simple words — do not just copy-paste from the knowledge base.
 """
 
-async def fetch_site_content() -> str:
-    """Fetch site pages using jina.ai reader which bypasses anti-bot protection"""
-    content = ""
-    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        for page_url in SITE_PAGES[:3]:
-            try:
-                jina_url = f"https://r.jina.ai/{page_url}"
-                resp = await client.get(
-                    jina_url,
-                    headers={
-                        "User-Agent": "Mozilla/5.0",
-                        "Accept": "text/plain",
-                    }
-                )
-                if resp.status_code == 200:
-                    text = resp.text[:4000]
-                    content += f"\n\n=== {page_url} ===\n{text}"
-                    logging.info(f"Fetched {page_url}: {len(resp.text)} chars")
-                else:
-                    logging.warning(f"Failed {page_url}: {resp.status_code}")
-            except Exception as e:
-                logging.warning(f"Error fetching {page_url}: {e}")
-    return content or "No content available."
+def load_knowledge() -> str:
+    try:
+        with open("knowledge.txt", "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        logging.error(f"Failed to load knowledge.txt: {e}")
+        return ""
 
-async def ask_ai(user_message: str, site_content: str, image_data: str = None) -> str:
-    prompt = f"""Game information:
-{site_content}
+async def ask_ai(user_message: str, knowledge: str, image_data: str = None) -> str:
+    prompt = f"""Game knowledge base:
+{knowledge}
 
 User question: {user_message}"""
 
@@ -124,7 +99,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🍄 *Что я умею:*\n\n"
         "• Отвечать на вопросы по игре\n"
         "• Помогать с выбором класса и билда\n"
-        "• Анализировать скриншот твоих вещей и давать советы по сборке\n"
+        "• Анализировать скриншот вещей и давать советы по сборке\n"
         "• Рассказывать об ивентах и механиках\n\n"
         "В группе: напиши @имя\\_бота вопрос или ответь на моё сообщение 👇",
         parse_mode="Markdown"
@@ -171,8 +146,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await message.chat.send_action("typing")
 
-    site_content = await fetch_site_content()
-    reply = await ask_ai(user_message, site_content, image_data)
+    knowledge = load_knowledge()
+    reply = await ask_ai(user_message, knowledge, image_data)
 
     if reply:
         await message.reply_text(reply)
