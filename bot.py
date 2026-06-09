@@ -218,7 +218,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 "/classes — обзор классов\n"
 "/builds — сборки по классам\n"
 "/feedback ТЕКСТ — отправить отзыв\n"
-"/help — помощь",,
+"/help — помощь",
             reply_markup=main_menu_keyboard()
         )
         parse_mode="Markdown"
