@@ -334,3 +334,196 @@ CLASS_INFO = {
     "class_darklord": ("🌑 Тёмный Владыка", "Роль: Убийца одним ударом\n\n✅ Очень силён в начале-середине игры\n❌ Труднее со временем, слабее против Лучников\n\nКлючевые статы: Атака, Урон скилла, Крит урон скилла, Оглушение\nСнаряжение: Крит скилла & Оглушение\nМолитвенная статуя: Атака x5\nАвиан: Тыквенная Ведьма", None),
     "class_beastmaster": ("🐾 Повелитель Зверей", "Роль: Стеклянная пушка DPS\n\n✅ Силён против Магов и Танков\n❌ Страдает от контрударов Вестника Войны\n\nРекомендуется после питомцев 200+ уровня\n\nКлючевые статы: Атака, Урон питомца, Крит урон питомца\nСнаряжение: Комбо питомца & Крит питомца\nМолитвенная статуя: Атака x5", None),
     "class_supreme": ("💀 Верховный Дух", "Роль: DPS Танк\n\n✅ Быстрее наносит урон чем другие танки, очень силён против Танков\n❌ Меньше танковых пассивов, нужно вечное снаряжение\n\nКлючевые статы: Здоровье, Регенерация, Крит сопротивление\nСнаряжение: Комбо питомца & Регенерация", None) # ✅ 
+}
+
+# ============ HANDLERS & COMMANDS ============
+
+async def check_user_access(update: Update) -> bool:
+    user_id = update.effective_user.id
+    if await is_approved(user_id):
+        return True
+    await update.effective_message.reply_text(UI_TEXTS["no_access_msg"])
+    return False
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id == ADMIN_ID:
+        await save_approved_user(user_id, update.effective_user.username or "")
+        
+    if await is_approved(user_id):
+        await send_welcome(context.bot, user_id)
+    else:
+        await update.message.reply_text(UI_TEXTS["no_access_msg"])
+
+async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_user_access(update): return
+    await update.message.reply_text(UI_TEXTS["menu_title"], reply_markup=main_menu_keyboard())
+
+async def classes_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_user_access(update): return
+    await update.message.reply_text(UI_TEXTS["classes_title"], reply_markup=classes_keyboard())
+
+async def builds_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_user_access(update): return
+    await update.message.reply_text(UI_TEXTS["builds_title"] + "Выберите нужный вам класс через /classes для детальной информации!")
+
+async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_user_access(update): return
+    if not context.args:
+        await update.message.reply_text("Пожалуйста, напишите ваш отзыв после команды. Пример: `/feedback Бот отличный!`", parse_mode="Markdown")
+        return
+    feedback_text = " ".join(context.args)
+    if ADMIN_ID:
+        try:
+            await context.bot.send_message(ADMIN_ID, f"📩 *Новый отзыв* от @{update.effective_user.username} (ID: `{update.effective_user.id}`):\n\n{feedback_text}", parse_mode="Markdown")
+        except Exception as e:
+            logger.error(f"Feedback admin send error: {e}")
+    await update.message.reply_text("Спасибо за отзыв! Он передан администратору. 🍄")
+
+async def code_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if await is_approved(user_id):
+        await update.message.reply_text("Вы уже авторизованы в боте! 🍄")
+        return
+    if not context.args:
+        await update.message.reply_text("Введите код после команды. Пример: `/code СекретныйКод`", parse_mode="Markdown")
+        return
+    entered_code = context.args[0]
+    if entered_code == ACCESS_CODE:
+        await save_approved_user(user_id, update.effective_user.username or "")
+        await update.message.reply_text("✅ Код верный! Доступ успешно предоставлен.")
+        await send_welcome(context.bot, user_id)
+    else:
+        await update.message.reply_text("❌ Неверный код доступа.")
+
+async def request_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if await is_approved(user_id):
+        await update.message.reply_text("Вы уже авторизованы! 🍄")
+        return
+    username = update.effective_user.username or f"id{user_id}"
+    await update.message.reply_text("⏳ Запрос отправлен администратору. Пожалуйста, ожидайте решения.")
+    if ADMIN_ID:
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Одобрить", callback_data=f"adm_ok_{user_id}"),
+             InlineKeyboardButton("❌ Отклонить", callback_data=f"adm_no_{user_id}")]
+        ])
+        try:
+            await context.bot.send_message(ADMIN_ID, f"🔔 *Запрос доступа* от @{username} (ID: `{user_id}`):", parse_mode="Markdown", reply_markup=keyboard)
+        except Exception as e:
+            logger.error(f"Request admin send error: {e}")
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    user_id = update.effective_user.id
+
+    # Обработка админских кнопок
+    if data.startswith("adm_ok_") or data.startswith("adm_no_"):
+        if user_id != ADMIN_ID: return
+        target_id = int(data.split("_")[2])
+        if data.startswith("adm_ok_"):
+            await save_approved_user(target_id)
+            await query.edit_message_text(f"✅ Пользователь `{target_id}` успешно одобрен.", parse_mode="Markdown")
+            try:
+                await context.bot.send_message(target_id, "🎉 Администратор одобрил ваш доступ! Введите /start для начала.")
+            except: pass
+        else:
+            await query.edit_message_text(f"❌ Доступ пользователю `{target_id}` отклонен.", parse_mode="Markdown")
+        return
+
+    if not await is_approved(user_id):
+        await query.message.reply_text(UI_TEXTS["no_access_msg"])
+        return
+
+    if data == "menu_main":
+        await query.edit_message_text(UI_TEXTS["menu_title"], reply_markup=main_menu_keyboard())
+    elif data == "menu_classes":
+        await query.edit_message_text(UI_TEXTS["classes_title"], reply_markup=classes_keyboard())
+    elif data == "menu_builds":
+        await query.edit_message_text(UI_TEXTS["builds_title"] + "Выберите класс через меню ⚔️ Классы для подробностей.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
+    elif data == "menu_pals":
+        await query.edit_message_text(UI_TEXTS["pals_title"], reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
+    elif data == "menu_events":
+        await query.edit_message_text(UI_TEXTS["events_title"], reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
+    elif data == "menu_beginner":
+        await query.edit_message_text(UI_TEXTS["beginner_title"], parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
+    elif data == "menu_help":
+        await query.edit_message_text(UI_TEXTS["help_title"], reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
+    elif data in CLASS_INFO:
+        title, text, keyboard_func = CLASS_INFO[data]
+        kb = keyboard_func() if keyboard_func else InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")]])
+        await query.edit_message_text(f"*{title}*\n\n{text}", parse_mode="Markdown", reply_markup=kb)
+
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not await is_approved(user_id):
+        await update.message.reply_text(UI_TEXTS["no_access_msg"])
+        return
+
+    is_limited, secs = check_rate_limit(user_id)
+    if is_limited:
+        await update.message.reply_text(UI_TEXTS["rate_limit_msg"].format(seconds=secs))
+        return
+
+    user_text = update.message.text or update.message.caption or ""
+    image_data = None
+
+    if update.message.photo:
+        await update.message.reply_chat_action("upload_photo")
+        photo_file = await update.message.photo[-1].get_file()
+        photo_bytes = await photo_file.download_as_bytearray()
+        image_data = base64.b64encode(photo_bytes).decode("utf-8")
+        if not user_text:
+            user_text = "Проанализируй скриншот снаряжения/вещей из игры Legend of Mushroom и дай совет по сборке."
+
+    if not user_text:
+        return
+
+    status_msg = await update.message.reply_text("🍄 Думаю...")
+
+    await add_conversation(user_id, "user", user_text)
+    ai_response = await ask_ai(user_text, user_id, image_data)
+
+    if ai_response:
+        await add_conversation(user_id, "assistant", ai_response)
+        await increment_stats(user_id)
+        await status_msg.edit_text(ai_response)
+    else:
+        await status_msg.edit_text("❌ Произошла ошибка связи с ИИ-моделями. Повторите попытку позже.")
+
+# ============ MAIN APP RUNNER ============
+
+async def post_init(application):
+    """Выполняется автоматически внутри запущенного event loop библиотеки"""
+    await init_db()
+    await load_knowledge()
+    logger.info("Бот готов к обработке входящих сообщений!")
+
+def main():
+    if not TELEGRAM_TOKEN:
+        logger.error("Переменная окружения TELEGRAM_TOKEN не найдена!")
+        return
+
+    # Инициализация приложения
+    application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
+
+    # Регистрация обработчиков команд
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("menu", menu_command))
+    application.add_handler(CommandHandler("classes", classes_command))
+    application.add_handler(CommandHandler("builds", builds_command))
+    application.add_handler(CommandHandler("code", code_command))
+    application.add_handler(CommandHandler("request", request_command))
+    application.add_handler(CommandHandler("feedback", feedback_command))
+
+    # Регистрация обработки кнопок и текстовых/фото сообщений
+    application.add_handler(CallbackQueryHandler(button_handler))
+    application.add_handler(MessageHandler(filters.TEXT | filters.PHOTO, message_handler))
+
+    logger.info("Запускpolling...")
+    application.run_polling()
+
+if __name__ == '__main__':
+    main()
