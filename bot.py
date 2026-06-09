@@ -338,24 +338,34 @@ CLASS_INFO = {
 
 # ============ MAIN (ЗАПУСК БОТА) ============
 
-async def main():
-    # Инициализация базы данных и загрузка знаний
+async def post_init(application):
+    """
+    Эта асинхронная функция выполнится автоматически СРАЗУ ПОСЛЕ
+    того, как telegram-библиотека запустит свой внутренний цикл событий.
+    """
     await init_db()
     await load_knowledge()
+    logger.info("База данных и база знаний успешно загружены!")
 
-    # Создание приложения бота
-    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+def main():
+    # Проверяем наличие токена перед стартом
+    if not TELEGRAM_TOKEN:
+        logger.error("Переменная окружения TELEGRAM_TOKEN не задана!")
+        return
 
-    # ВАЖНО: Здесь вы должны зарегистрировать свои обработчики команд
-    # (если они описаны в другой части проекта, импортируйте их)
+    # Создание приложения бота с привязкой post_init хука
+    application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
+
+    # ⚠️ ВАЖНО: Зарегистрируйте здесь ваши обработчики (хэндлеры), если они есть!
     # Например:
     # application.add_handler(CommandHandler("start", start_command))
+    # application.add_handler(CallbackQueryHandler(button_handler))
+    # application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
 
-    logger.info("Бот успешно запущен и работает!")
+    logger.info("Бот успешно инициализирован и начинает опрос (polling)...")
     
-    # Запуск бота
-    await application.run_polling()
+    # Запуск бота (теперь run_polling сам безопасно управляет event loop)
+    application.run_polling()
 
 if __name__ == '__main__':
-    # Запускаем асинхронный цикл
-    asyncio.run(main())
+    main()
