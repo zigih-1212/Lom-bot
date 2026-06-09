@@ -212,7 +212,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "🍄 Привет! Я Shroom Helper — твой помощник по Legend of Mushroom!\n\n"
             "Вся информация предоставлена zigi.\n"
-            ""Задай вопрос, отправь скриншот или открой меню 👇\n\n"
+            "Задай вопрос, отправь скриншот или открой меню 👇\n\n"
 "📋 *Доступные команды:*\n"
 "/menu — главное меню\n"
 "/classes — обзор классов\n"
