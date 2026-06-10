@@ -252,43 +252,44 @@ class DiscordBridge(discord.Client):
 
 # ============ НЕЙРОСЕТЬ ИИ ============
 async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str:
+    # Собираем короткий контекст билдов из кнопок
     class_guides_context = ""
     try:
         text_blocks = []
         for key, val in CLASS_INFO.items():
-            text_blocks.append(f"Класс: {val[0]}\nГайд и Сборка:\n{val[1]}")
+            text_blocks.append(f"Класс: {val[0]}\nГайд:\n{val[1]}")
         class_guides_context = "\n\n".join(text_blocks)
     except Exception as e:
         logger.error(f"Ошибка при сборке CLASS_INFO для ИИ: {e}")
 
-    db_context = (
-        f"=== ИГРОВАЯ БАЗА ЗНАНИЙ И ГАЙДЫ ===\n{class_guides_context}\n\n"
-        f"{KNOWLEDGE_TEXT}\n\n"
-        f"=== АКТУАЛЬНЫЕ ИВЕНТЫ ===\n{DYNAMIC_EVENTS}"
-    )
-
     async def try_model(model, is_vision_mode):
         try:
             if is_vision_mode and image_data:
-                # ✅ МОНОЛИТНЫЙ ПАКЕТ: Соединяем всё в один ход 'user' для Vision-моделей. 
-                # Это полностью исключает любые скрытые ошибки 400 Bad Request на OpenRouter!
-                full_prompt = (
-                    f"{SYSTEM_PROMPT}\n\n"
-                    f"{db_context}\n\n"
-                    f"ЗАДАНИЕ ДЛЯ ИИ: Внимательно рассмотри прикрепленное изображение и ответь на вопрос игрока по алгоритму.\n"
-                    f"Вопрос от игрока: {user_message}"
+                # ✅ ОБЛЕГЧЕННЫЙ ВАРИАНТ ДЛЯ ГРАФИКИ: Убираем тяжелые файлы, чтобы уложиться в бесплатный лимит OpenRouter.
+                # Теперь Gemini гарантированно запустится и увидит скриншот!
+                v_prompt = (
+                    f"Краткий контекст билдов игры:\n{class_guides_context}\n\n"
+                    f"ЗАДАНИЕ: Внимательно посмотри на прикрепленный скриншот. Перечисли, какие навыки/вещи доступны у игрока на экране. "
+                    f"Опираясь на правила сленга, дай четкий совет, что из ЭТОГО поставить, а что убрать.\n"
+                    f"Вопрос игрока: {user_message}"
                 )
                 model_messages = [
+                    {"role": "system", "content": SYSTEM_PROMPT},
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": full_prompt},
+                            {"type": "text", "text": v_prompt},
                             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
                         ]
                     }
                 ]
             else:
-                # Для обычного текста используем классическую многоходовку с историей
+                # Классический текстовый режим (включает файлы и историю чата)
+                db_context = (
+                    f"=== ИГРОВАЯ БАЗА ЗНАНИЙ И ГАЙДЫ ===\n{class_guides_context}\n\n"
+                    f"{KNOWLEDGE_TEXT}\n\n"
+                    f"=== АКТУАЛЬНЫЕ ИВЕНТЫ ===\n{DYNAMIC_EVENTS}"
+                )
                 model_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
                 model_messages.append({"role": "user", "content": db_context})
                 model_messages.append({"role": "assistant", "content": "Принято, база данных в памяти. Слушаю вопрос игрока."})
@@ -320,6 +321,30 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
         except Exception as e:
             logger.error(f"❌ Ошибка вызова {model}: {e}")
             return None
+
+    # Если есть картинка — отправляем облегченный Vision-пакет
+    if image_data:
+        vision_models = [
+            "google/gemini-2.5-flash:free", 
+            "meta-llama/llama-3.2-11b-vision-instruct:free"
+        ]
+        for model in vision_models:
+            logger.info(f"Отправляю облегченный пакет со скриншотом в {model}...")
+            res = await try_model(model, is_vision_mode=True)
+            if res: return res
+        logger.warning("⚠️ Все зрячие модели выдали ошибку. Переключаюсь на текст...")
+
+    # Текстовый режим
+    text_models = [
+        "google/gemma-4-31b-it:free",
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+    ]
+    for model in text_models:
+        res = await try_model(model, is_vision_mode=False)
+        if res: return res
+
+    return None
+
 
     # Если есть картинка — бьем монолитным запросом строго по Vision-моделям
     if image_data:
