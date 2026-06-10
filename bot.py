@@ -274,6 +274,7 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
                     f"Опираясь на правила сленга, дай четкий совет, что из ЭТОГО поставить, а что убрать.\n"
                     f"Вопрос игрока: {user_message}"
                 )
+
                 model_messages = [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {
