@@ -323,10 +323,11 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             return None
 
     # Если есть картинка — отправляем облегченный Vision-пакет
-    if image_data:
+        if image_data:
         vision_models = [
-            "google/gemini-2.5-flash:free", 
-            "meta-llama/llama-3.2-11b-vision-instruct:free"
+            "openrouter/free",
+            "google/gemma-4-31b-it:free",
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
         ]
         for model in vision_models:
             logger.info(f"Отправляю облегченный пакет со скриншотом в {model}...")
