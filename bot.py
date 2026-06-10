@@ -34,8 +34,9 @@ DB_PATH = "bot_data.db"
 
 # Обновленный список: авто-роутер и рабочие Vision-модели
 MODELS = [
-    "openrouter/free",                # Умный авто-роутер (сам найдет живую модель с глазами)
-    "google/gemma-4-31b-it:free",     # Мощная модель от Google, поддерживающая Vision
+    "google/gemini-2.5-flash:free",                  # Напрямую бьем в Gemini
+    "meta-llama/llama-3.2-11b-vision-instruct:free", # Напрямую в Llama Vision
+    "google/gemma-4-31b-it:free",
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
 
@@ -351,11 +352,11 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
     # Если есть картинка — бьем монолитным запросом строго по Vision-моделям
     if image_data:
         vision_models = [
-            "google/gemini-2.5-flash:free", 
+            "google/gemini-2.5-flash:free",
             "meta-llama/llama-3.2-11b-vision-instruct:free"
         ]
         for model in vision_models:
-            logger.info(f"Отправляю монолитный Vision-пакет в {model}...")
+            logger.info(f"Отправляю облегченный пакет со скриншотом в {model}...")
             res = await try_model(model, is_vision_mode=True)
             if res: return res
         logger.warning("⚠️ Все зрячие модели выдали ошибку. Переключаюсь на текст...")
