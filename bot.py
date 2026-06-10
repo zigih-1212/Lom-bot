@@ -249,7 +249,7 @@ class DiscordBridge(discord.Client):
 
 # ============ НЕЙРОСЕТЬ ИИ ============
 async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str:
-    # 1. Вытаскиваем все подробные гайды из наших кнопок CLASS_INFO, чтобы ИИ их наконец-то увидел!
+    # 1. Собираем подробные гайды из наших кнопок CLASS_INFO
     class_guides_context = ""
     try:
         text_blocks = []
@@ -259,34 +259,39 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
     except Exception as e:
         logger.error(f"Ошибка при сборке CLASS_INFO для ИИ: {e}")
 
-    # 2. Формируем единый контекст для нейросети
-    prompt = (
-        f"=== ГАЙДЫ ИЗ КНОПОК БОТА (ПРИОРИТЕТ) ===\n{class_guides_context}\n\n"
-        f"=== ДОПОЛНИТЕЛЬНАЯ БАЗА ЗНАНИЙ ===\n{KNOWLEDGE_TEXT}\n\n"
-        f"=== АКТУАЛЬНЫЕ ИВЕНТЫ ===\n{DYNAMIC_EVENTS}\n\n"
-        f"Запрос пользователя: {user_message}"
-    )
-
+    # 2. Инициализируем историю с системным промптом
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+    # РАЗДЕЛЕНИЕ КОНТЕКСТА: Загружаем тяжелую базу знаний ОТДЕЛЬНЫМ ходом, чтобы разгрузить сообщение с фото!
+    db_context = (
+        f"=== ИГРОВАЯ БАЗА ЗНАНИЙ И ГАЙДЫ ===\n{class_guides_context}\n\n"
+        f"{KNOWLEDGE_TEXT}\n\n"
+        f"=== АКТУАЛЬНЫЕ ИВЕНТЫ ===\n{DYNAMIC_EVENTS}"
+    )
+    messages.append({"role": "user", "content": db_context})
+    messages.append({"role": "assistant", "content": "Принято. Вся база знаний и гайды по Legend of Mushroom успешно загружены в мою память. Я готов анализировать скриншоты игроков и отвечать на вопросы, строго опираясь на эти данные и правила сленга."})
+
+    # Добавляем историю реального диалога с пользователем (последние 4 сообщения)
     history = await get_conversation_history(user_id, limit=4)
     if history: 
         messages.extend(history)
 
-    # Внутренняя функция для отправки запроса в конкретную модель
+    # Внутренняя функция для отправки запроса в OpenRouter
     async def try_model(model, includes_image):
         if includes_image and image_data:
-            # Правильный формат передачи картинки для OpenRouter Vision моделей
+            # Картинка ОБЯЗАТЕЛЬНО должна идти ПЕРВОЙ в списке — это жесткое требование Vision-моделей
             msg_content = [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}},
+                {"type": "text", "text": f"Вопрос от игрока: {user_message}"}
             ]
         else:
-            msg_content = [{"type": "text", "text": prompt}]
+            msg_content = [{"type": "text", "text": user_message}]
 
+        # Формируем финальный пакет для отправки
         model_messages = messages + [{"role": "user", "content": msg_content}]
 
         try:
-            async with httpx.AsyncClient(timeout=35) as client:
+            async with httpx.AsyncClient(timeout=40) as client:
                 response = await client.post(
                     "https://openrouter.ai/api/v1/chat/completions",
                     headers={
@@ -300,15 +305,39 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             
             data = response.json()
             if "choices" in data and data["choices"]:
-                logger.info(f"🦾 Успешный ответ от модели: {model}")
+                logger.info(f"🦾 Успешный ответ от нейросети: {model}")
                 return data["choices"][0]["message"]["content"]
             
             if "error" in data:
-                logger.error(f"⚠️ Ошибка от OpenRouter для {model}: {data['error']}")
+                logger.error(f"⚠️ Ошибка OpenRouter для модели {model}: {data['error']}")
             return None
         except Exception as e:
             logger.error(f"❌ Ошибка сети/таймаута при вызове {model}: {e}")
             return None
+
+    # 3. ЕСЛИ ИГРОК ОТПРАВИЛ СКРИНШОТ — БЬЕМ СТРОГО ПО МОЩНЫМ VISION МОДЕЛЯМ
+    if image_data:
+        vision_models = [
+            "google/gemini-2.5-flash:free", 
+            "meta-llama/llama-3.2-11b-vision-instruct:free"
+        ]
+        for model in vision_models:
+            logger.info(f"Отправляю очищенный запрос со скриншотом в {model}...")
+            res = await try_model(model, includes_image=True)
+            if res: return res
+        
+        logger.warning("⚠️ Все зрячие модели выдали ошибку. Вынужденно переключаюсь на текст...")
+
+    # 4. РЕЗЕРВНЫЙ ТЕКСТОВЫЙ БЭКАП (Если картинки не было или Vision-сети перегружены)
+    text_models = [
+        "google/gemma-4-31b-it:free",
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+    ]
+    for model in text_models:
+        res = await try_model(model, includes_image=False)
+        if res: return res
+
+    return None
 
     # 3. ЕСЛИ ЕСТЬ КАРТИНКА — ПРОБУЕМ СТРОГО МОДЕЛИ С ПОДДЕРЖКОЙ VISION
     if image_data:
