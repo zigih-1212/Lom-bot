@@ -535,7 +535,7 @@ async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def code_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if await is_approved(user_id): return
-    if context.args and context.args[0] == ACCESS_CODE:
+    if context.args and " ".join(context.args).strip() == ACCESS_CODE.strip():
         await save_approved_user(user_id, update.effective_user.username or "")
         await update.message.reply_text("✅ Доступ успешно предоставлен.")
         await send_welcome(context.bot, user_id)
