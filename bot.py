@@ -32,13 +32,13 @@ GUIDE_URL = os.environ.get("GUIDE_URL")
 
 DB_PATH = "bot_data.db"
 
-# Список моделей: Графические (Vision) на первом месте
+# Обновленный список: авто-роутер и рабочие Vision-модели
 MODELS = [
-    "google/gemini-2.5-flash:free",
-    "meta-llama/llama-3.2-11b-vision-instruct:free",
-    "google/gemma-4-31b-it:free",
+    "openrouter/free",                # Умный авто-роутер (сам найдет живую модель с глазами)
+    "google/gemma-4-31b-it:free",     # Мощная модель от Google, поддерживающая Vision
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
+
 
 USER_COOLDOWNS = {}
 RATE_LIMIT_PER_MINUTE = 10
