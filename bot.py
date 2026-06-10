@@ -323,7 +323,7 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             return None
 
     # Если есть картинка — отправляем облегченный Vision-пакет
-        if image_data:
+    if image_data:
         vision_models = [
             "openrouter/free",
             "google/gemma-4-31b-it:free",
@@ -334,6 +334,7 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             res = await try_model(model, is_vision_mode=True)
             if res: return res
         logger.warning("⚠️ Все зрячие модели выдали ошибку. Переключаюсь на текст...")
+
 
     # Текстовый режим
     text_models = [
