@@ -33,10 +33,9 @@ GUIDE_URL = os.environ.get("GUIDE_URL")
 DB_PATH = "bot_data.db"
 
 MODELS = [
-    "google/gemma-4-31b-it:free",
-    "google/gemma-4-26b-a4b-it:free",
-    "openai/gpt-oss-120b:free",
-    "liquid/lfm-2.5-1.2b-instruct:free",
+    "google/gemini-2.5-flash:free",                  # Король распознавания фото, бесплатный и быстрый
+    "meta-llama/llama-3.2-11b-vision-instruct:free", # Отличная альтернативная модель с "глазами"
+    "google/gemma-4-31b-it:free",                    # Текстовый бэкап
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
 
