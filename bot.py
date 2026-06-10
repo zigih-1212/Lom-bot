@@ -276,9 +276,11 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
 
     async def try_model(model, includes_image):
         if includes_image and image_data:
+            # ✅ ИСПРАВЛЕНО: Текст ОБЯЗАТЕЛЬНО должен идти ПЕРВЫМ, а картинка ВТОРОЙ. 
+            # Теперь Gemini примет запрос без ошибок!
             msg_content = [
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}},
-                {"type": "text", "text": f"Вопрос от игрока: {user_message}"}
+                {"type": "text", "text": f"Вопрос от игрока: {user_message}"},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
             ]
         else:
             msg_content = [{"type": "text", "text": user_message}]
@@ -330,6 +332,7 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
         if res: return res
 
     return None
+
 
 # ============ КЛАВИАТУРЫ И КЛАССЫ ============
 def main_menu_keyboard():
