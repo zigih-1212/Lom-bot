@@ -316,6 +316,26 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
                     f"2. Если ты не уверен в точном русском названии навыка, ОБЯЗАТЕЛЬНО опиши его визуально по цвету и форме! Например: 'фиолетовый череп/яд Lv.19', 'зеленый кулак/листья Lv.5', 'золотой щит/монета Lv.4', 'желтая молния Lv.5'. Игрок поймет тебя по цвету картинки!\n"
                     f"3. Очень внимательно посмотри на цифры уровней внизу каждой иконки, не выдумывай их.\n"
                     f"4. Дай совет для Лучника: какие навыки из тех, что ты видишь (описывая их по цветам и уровням), нужно убрать из верхнего экипированного ряда, а какие поставить из нижней сетки инвентаря.\n"
+async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str:
+    class_guides_context = ""
+    try:
+        text_blocks = []
+        for key, val in CLASS_INFO.items():
+            text_blocks.append(f"Класс: {val[0]}\nГайд:\n{val[1]}")
+        class_guides_context = "\n\n".join(text_blocks)
+    except Exception as e:
+        logger.error(f"Ошибка при сборке CLASS_INFO для ИИ: {e}")
+
+    async def try_model(model, is_vision_mode):
+        try:
+            if is_vision_mode and image_data:
+                v_prompt = (
+                    f"Краткий контекст билдов игры:\n{class_guides_context}\n\n"
+                    f"ЗАДАНИЕ ДЛЯ ВЫСОКОТОЧНОГО АНАЛИЗА СКРИНШОТА:\n"
+                    f"1. На скриншоте меню навыков Legend of Mushroom. Внимательно изучи иконки и мелкие цифры уровней (Lv.) под ними.\n"
+                    f"2. Если ты не уверен в точном русском названии навыка, ОБЯЗАТЕЛЬНО опиши его визуально по цвету и форме! Например: 'фиолетовый череп/яд Lv.19', 'зеленый кулак/листья Lv.5', 'золотой щит/монета Lv.4', 'желтая молния Lv.5'. Игрок поймет тебя по цвету картинки!\n"
+                    f"3. Очень внимательно посмотри на цифры уровней внизу каждой иконки, не выдумывай их.\n"
+                    f"4. Дай совет для Лучника: какие навыки из тех, что ты видишь (описывая их по цветам и уровням), нужно убрать из верхнего экипированного ряда, а какие поставить из нижней сетки инвентаря.\n"
                     f"Вопрос игрока: {user_message}"
                 )
                 model_messages = [
@@ -373,6 +393,28 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
         except Exception as e:
             logger.error(f"❌ Ошибка вызова {model}: {e}")
             return None
+
+    if image_data:
+        # Ставим Llama на первое место, так как Gemini сбоит фильтрами
+        vision_models = [
+            "meta-llama/llama-3.2-11b-vision-instruct:free",
+            "google/gemini-2.5-flash:free"
+        ]
+        for model in vision_models:
+            logger.info(f"Отправляю облегченный пакет со скриншотом в {model}...")
+            res = await try_model(model, is_vision_mode=True)
+            if res: return res
+        logger.warning("⚠️ Все зрячие модели выдали ошибку. Переключаюсь на текст...")
+
+    text_models = [
+        "google/gemma-4-31b-it:free",
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+    ]
+    for model in text_models:
+        res = await try_model(model, is_vision_mode=False)
+        if res: return res
+
+    return None
 
     if image_data:
         # Ставим Llama на первое место, так как Gemini сбоит фильтрами
