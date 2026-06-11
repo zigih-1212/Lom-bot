@@ -5,9 +5,9 @@ import json
 import httpx
 import asyncio
 import aiosqlite
-import discord  # Подключаем Дискорд
+import discord
 from datetime import datetime
-from bs4 import BeautifulSoup  # Подключаем очистку сайтов
+from bs4 import BeautifulSoup
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
@@ -19,32 +19,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Переменные окружения (Токены и ID)
+# Переменные окружения
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")  # Официальный ключ Google
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
 ACCESS_CODE = os.environ.get("ACCESS_CODE", "shroom2024")
 
-# Настройки для Дискорд-моста и Сайта с гайдами
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.environ.get("DISCORD_CHANNEL_ID", "0"))
 GUIDE_URL = os.environ.get("GUIDE_URL")
 
 DB_PATH = "bot_data.db"
 
-# Список рабочих ИИ-моделей
-MODELS = [
-    "meta-llama/llama-3.2-11b-vision-instruct:free",
-    "google/gemini-2.5-flash:free",
-    "google/gemma-4-31b-it:free",
-    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-]
-
 USER_COOLDOWNS = {}
 RATE_LIMIT_PER_MINUTE = 10
 RATE_LIMIT_TIMEOUT = 60
 
-# Глобальные переменные для баз данных
 KNOWLEDGE_TEXT = ""
 DYNAMIC_EVENTS = "Свежих новостей об ивентах пока не поступало." 
 
@@ -59,9 +49,9 @@ SYSTEM_PROMPT = """You are Shroom Helper — an expert AI assistant for the mobi
 - "Навыки", "скиллы", "кнопки", "активки" = Активные навыки персонажа.
 
 📸 ПРАВИЛА АНАЛИЗА СКРИНШОТОВ (КРИТИЧЕСКИ ВАЖНО):
-Ты обязан изучить картинку и дать четкий совет по алгоритму:
-- ШАГ 1: Перечисли, какие навыки/вещи/уровни (Lv.) ты отчетливо видишь на картинке в инвентаре и в экипировке. Описывай их по цветам иконки, если не уверен в названии (например: зеленый кулак Lv.5, фиолетовый череп Lv.19).
-- ШАГ 2: Дай четкое руководство к действию для конкретного класса игрока. Что снять из верхнего ряда, а что поставить из нижнего инвентаря.
+Ты обязан изучить картинку и дать подробный разбор:
+- ШАГ 1: Перечисли, какие навыки/вещи/уровни (Lv.) ты отчетливо видишь на картинке. Если сомневаешься в названии на русском, опиши иконку визуально по цвету (например: фиолетовый череп Lv.19, золотой щит Lv.4).
+- ШАГ 2: Дай железный совет для указанного подкласса игрока. Напиши, что именно убрать из верхних слотов, а что поставить из инвентаря снизу.
 
 Отвечай строго на русском языке, используй списки и жирный шрифт. 🍄
 """
@@ -188,11 +178,14 @@ class DiscordBridge(discord.Client):
     async def on_message(self, message):
         global DYNAMIC_EVENTS
         if message.author == self.user: return
-        if message.channel.id == DISCORD_CHANNEL_ID:
-            DYNAMIC_EVENTS = message.content
+        if message.channel.id == DISCORD_CHANNEL_ID: DYNAMIC_EVENTS = message.content
 
-# ============ ИИ-НЕЙРОСЕТЬ С АВТОФИЛЬТРОМ БРАКА ============
+# ============ ПРЯМОЙ ОФИЦИАЛЬНЫЙ GOOGLE GEMINI API ============
 async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str:
+    if not GEMINI_API_KEY:
+        logger.error("❌ GEMINI_API_KEY отсутствует в переменных окружения!")
+        return "Ошибка: Не настроен ключ API Google."
+
     class_guides_context = ""
     try:
         text_blocks = []
@@ -200,73 +193,64 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
         class_guides_context = "\n\n".join(text_blocks)
     except: pass
 
-    async def try_model(model, is_vision_mode):
-        try:
-            if is_vision_mode and image_data:
-                v_prompt = (
-                    f"Контекст официальных билдов:\n{class_guides_context}\n\n"
-                    f"ЗАДАНИЕ: {user_message}"
-                )
-                model_messages = [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": v_prompt},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
-                        ]
-                    }
-                ]
-            else:
-                db_context = f"=== ГАЙДЫ ===\n{class_guides_context}\n\n{KNOWLEDGE_TEXT}\n\n=== ИВЕНТЫ ===\n{DYNAMIC_EVENTS}"
-                model_messages = [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": db_context},
-                    {"role": "assistant", "content": "База знаний принята. Слушаю текстовый вопрос игрока."},
-                ]
-                history = await get_conversation_history(user_id, limit=4)
-                if history: model_messages.extend(history)
-                model_messages.append({"role": "user", "content": user_message})
-
-            async with httpx.AsyncClient(timeout=45) as client:
-                response = await client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://t.me/lom_helper_mushroom_bot",
-                        "X-Title": "LoM Shroom Helper",
-                    },
-                    json={"model": model, "messages": model_messages, "max_tokens": 1000}
-                )
-            
-            data = response.json()
-            if "choices" in data and data["choices"]:
-                content = data["choices"][0]["message"]["content"]
-                if "user safety" in content.lower() or content.strip() == "":
-                    logger.warning(f"⚠️ Заглушка безопасности от {model}. Пропускаем.")
-                    return None
-                logger.info(f"Успешный ответ от: {model}")
-                return content
-            return None
-        except Exception as e:
-            logger.error(f"Ошибка модели {model}: {e}")
-            return None
+    # Формируем структуру содержимого для Google API
+    contents = []
 
     if image_data:
-        vision_models = [
-            "meta-llama/llama-3.2-11b-vision-instruct:free",
-            "google/gemini-2.5-flash:free"
-        ]
-        for model in vision_models:
-            res = await try_model(model, is_vision_mode=True)
-            if res: return res
+        # Режим анализа фото (облегченный и сверхточный)
+        v_prompt = (
+            f"Контекст официальных билдов игры:\n{class_guides_context}\n\n"
+            f"ЗАДАНИЕ ДЛЯ ТЕБЯ: {user_message}"
+        )
+        contents.append({
+            "role": "user",
+            "parts": [
+                {"text": v_prompt},
+                {"inlineData": {"mimeType": "image/jpeg", "data": image_data}}
+            ]
+        })
+    else:
+        # Обычный текстовый режим с контекстом и историей
+        db_context = f"=== ИГРОВАЯ БАЗА ЗНАНИЙ ===\n{class_guides_context}\n\n{KNOWLEDGE_TEXT}\n\n=== ИВЕНТЫ ===\n{DYNAMIC_EVENTS}"
+        contents.append({"role": "user", "parts": [{"text": db_context}]})
+        contents.append({"role": "model", "parts": [{"text": "Игровая база знаний успешно загружена в мою память. Задавай свой вопрос."}]})
+        
+        # Добавляем историю переписки
+        history = await get_conversation_history(user_id, limit=4)
+        for h in history:
+            role = "model" if h["role"] == "assistant" else "user"
+            contents.append({"role": role, "parts": [{"text": h["content"]}]})
+            
+        contents.append({"role": "user", "parts": [{"text": user_message}]})
 
-    text_models = ["google/gemma-4-31b-it:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"]
-    for model in text_models:
-        res = await try_model(model, is_vision_mode=False)
-        if res: return res
-    return None
+    # Сборка полного тела запроса по стандартам Google AI Studio
+    payload = {
+        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": contents,
+        "generationConfig": {
+            "maxOutputTokens": 1200,
+            "temperature": 0.3
+        }
+    }
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+
+    try:
+        async with httpx.AsyncClient(timeout=40) as client:
+            response = await client.post(url, headers={"Content-Type": "application/json"}, json=payload)
+            
+        if response.status_code == 200:
+            data = response.json()
+            if "candidates" in data and data["candidates"]:
+                ai_text = data["candidates"][0]["content"]["parts"][0]["text"]
+                logger.info("🦾 Прямой успешный ответ от официального Google Gemini API!")
+                return ai_text
+        
+        logger.error(f"❌ Ошибка Google API Статус: {response.status_code}, Ответ: {response.text}")
+        return None
+    except Exception as e:
+        logger.error(f"❌ Критическая ошибка при вызове Google Gemini API: {e}")
+        return None
 
 # ============ КЛАВИАТУРЫ И СТРУКТУРА МЕНЮ ============
 def main_menu_keyboard():
@@ -338,7 +322,7 @@ def tamer_keyboard():
 CLASS_INFO = {
     "class_warrior": ("⚔️ Воин", "Основной класс ближнего боя. Высокая защита и контрудары.", warrior_keyboard),
     "class_archer": ("🏹 Лучник", "Высокий урон комбо и криты. Король ПвЕ контента.", archer_keyboard),
-    "class_mage": ("🔮 Маг", "Упор на активные навыки и оглушение противника.", mage_keyboard),
+    "class_mage": ("🔮 Маг", "Упор на active-навыки и оглушение противника.", mage_keyboard),
     "class_tamer": ("🐉 Укротитель", "Сила зависит от прокачки и расстановки твоих питомцев.", tamer_keyboard),
     "class_martial_sage": ("🛡️ Боевой Мудрец", "Бессмертный танк с регенерацией. Снаряжение: Контрудар/Реген.", None),
     "class_warbringer": ("⚔️ Вестник Войны", "Танковый DPS. Силен против Лучников. Снаряжение: Контрудар/Крит.", None),
@@ -408,14 +392,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['p_class'] = chosen_subclass
         
         class_ru = {
-            "martial_sage": "Боевого Мудреца (Танк)", 
-            "warbringer": "Вестника Войны (Ближний бой)", 
-            "sacred_hunter": "Священного Охотника (Анти-маг)", 
-            "plume": "Повелителя Перьев (Лучник комбо/крит)", 
-            "prophet": "Пророка (Маг контроля)", 
-            "darklord": "Тёмного Владыки (Взрывной маг)", 
-            "beastmaster": "Повелителя Зверей (Призыватель)", 
-            "supreme": "Верховного Духа (Призыватель-танк)"
+            "martial_sage": "Боевого Мудреца (Танк)", "warbringer": "Вестника Войны (Ближний бой)", 
+            "sacred_hunter": "Священного Охотника (Анти-маг)", "plume": "Повелителя Перьев (Лучник комбо/крит)", 
+            "prophet": "Пророка (Маг контроля)", "darklord": "Тёмного Владыки (Взрывной маг)", 
+            "beastmaster": "Повелителя Зверей (Призыватель)", "supreme": "Верховного Духа (Призыватель-танк)"
         }
         await query.edit_message_text(
             f"📥 *Отлично! Я готов.*\n\nТеперь просто отправь мне **скриншот** своего инвентаря навыков.\n"
@@ -425,7 +405,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Классическое меню навигации
+    # Навигация
     if data == "menu_main": await query.edit_message_text(UI_TEXTS["menu_title"], reply_markup=main_menu_keyboard())
     elif data == "menu_classes": await query.edit_message_text(UI_TEXTS["classes_title"], reply_markup=classes_keyboard())
     elif data == "menu_beginner": await query.edit_message_text(UI_TEXTS["beginner_title"], reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
@@ -437,7 +417,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = kb_f() if kb_f else InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")]])
         await query.edit_message_text(f"*{title}*\n\n{text}", parse_mode="Markdown", reply_markup=kb)
 
-# ============ ОБРАБОТЧИК СООБЩЕНИЙ С СИСТЕМОЙ ФИЛЬТРАЦИИ ФОТО ============
+# ============ ОБРАБОТЧИК СООБЩЕНИЙ ============
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if not await is_approved(user_id): return
@@ -458,7 +438,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        status_msg = await update.message.reply_text("🍄 Изучаю твой скриншот навыков... Секунду...")
+        status_msg = await update.message.reply_text("🍄 Официальный ИИ от Google изучает твой скриншот... Секунду...")
         
         photo_file = await update.message.photo[-1].get_file()
         photo_bytes = await photo_file.download_as_bytearray()
@@ -475,7 +455,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ai_prompt = (
             f"Внимательно изучи прикрепленный скриншот меню навыков Legend of Mushroom.\n"
             f"Игрок играет за точный подкласс: {class_ru.get(chosen_class)}.\n"
-            f"Выполни задание по нашему алгоритму анализа: найди все иконки в инвентаре, определи уровни и "
+            f"Выполни задание: найди все иконки в инвентаре, определи их уровни (Lv.) и "
             f"дай подробные инструкции, что поставить в активные слоты для этого конкретного подкласса."
         )
         
@@ -487,7 +467,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await increment_stats(user_id)
             await status_msg.edit_text(ai_response, parse_mode="Markdown")
         else:
-            await status_msg.edit_text("❌ Все зрячие ИИ-модели перегружены или выдали ошибку. Попробуйте отправить скриншот чуть позже.")
+            await status_msg.edit_text("❌ Произошла ошибка на стороне Google API. Попробуйте еще раз.")
         return
 
     # ТЕКСТОВЫЙ РЕЖИМ (Обычное общение)
@@ -505,14 +485,9 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else: 
         await status_msg.edit_text("❌ Ошибка ИИ. Попробуйте позже.")
 
-# Фоновая инициализация
 async def post_init(application):
     await init_db()
     await load_knowledge()
-    if DISCORD_TOKEN and DISCORD_CHANNEL_ID:
-        discord_client = DiscordBridge()
-        application.bot_data["discord_client"] = discord_client
-        asyncio.create_task(discord_client.start(DISCORD_TOKEN))
 
 def main():
     if not TELEGRAM_TOKEN: return
