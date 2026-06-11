@@ -261,34 +261,40 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
     except Exception as e:
         logger.error(f"Ошибка при сборке CLASS_INFO для ИИ: {e}")
 
-    # Внутренняя функция для отправки запроса
     async def try_model(model, is_vision_mode):
         try:
             if is_vision_mode and image_data:
-                # ✅ МОНОЛИТНЫЙ ПАКЕТ ДЛЯ "ГЛАЗ": Упаковываем всё в один ход 'user' для Vision-моделей. 
-                # Это гарантирует, что ИИ не забудет контекст промпта.
-                full_prompt = (
-                    f"{SYSTEM_PROMPT}\n\n"
-                    f"Краткий контекст билдов игры:\n{class_guides_context}\n\n"
-                    f"ЗАДАНИЕ ДЛЯ ВЫСОКОТОЧНОГО АНАЛИЗА СКРИНШОТА:\n"
-                    f"1. На скриншоте меню навыков Legend of Mushroom. Внимательно изучи иконки и мелкие цифры уровней (Lv.) под ними.\n"
-                    f"2. Если ты не уверен в точном русском названии навыка, ОБЯЗАТЕЛЬНО опиши его визуально по цвету и форме! Например: 'фиолетовый череп/яд Lv.19', 'зеленый кулак/листья Lv.5', 'золотой щит/монета Lv.4', 'желтая молния Lv.5'. Игрок поймет тебя по цвету картинки!\n"
-                    f"3. Очень внимательно посмотри на цифры уровней внизу каждой иконки, не выдумывай их.\n"
-                    f"4. Дай совет для Лучника: какие навыки из тех, что ты видишь (описывая их по цветам и уровням), нужно убрать из верхнего экипированного ряда, а какие поставить из нижней сетки инвентаря.\n"
-                    f"Вопрос игрока: {user_message}"
+                # ✅ ИСПРАВЛЕНО: Возвращаем SYSTEM_PROMPT на свое законное место. 
+                # Теперь Llama и Gemini примут структуру запроса без внутренних ошибок!
+                v_prompt = (
+                    f"Контекст билдов:\n{class_guides_context}\n\n"
+                    f"ЗАДАНИЕ ДЛЯ АНАЛИЗА:\n"
+                    f"1. Посмотри на скриншот навыков Legend of Mushroom.\n"
+                    f"2. Перечисли увиденное по цветам и уровням (например: фиолетовый череп Lv.19, зеленый кулак Lv.5).\n"
+                    f"3. Дай совет Лучнику/Пернатому, какие навыки поставить в верхний ряд.\n"
+                    f"Вопрос от игрока: {user_message}"
                 )
                 model_messages = [
+                    {"role": "system", "content": SYSTEM_PROMPT},
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": full_prompt},
+                            {"type": "text", "text": v_prompt},
                             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
                         ]
                     }
                 ]
             else:
-                # Облегченный текстовый режим (убираем файлы, чтобы влезть в лимит)
+                # Текстовый режим
+                db_context = (
+                    f"=== ИГРОВАЯ БАЗА ЗНАНИЙ И ГАЙДЫ ===\n{class_guides_context}\n\n"
+                    f"{KNOWLEDGE_TEXT}\n\n"
+                    f"=== АКТУАЛЬНЫЕ ИВЕНТЫ ===\n{DYNAMIC_EVENTS}"
+                )
                 model_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+                model_messages.append({"role": "user", "content": db_context})
+                model_messages.append({"role": "assistant", "content": "Принято, база данных в памяти. Слушаю вопрос игрока."})
+                
                 history = await get_conversation_history(user_id, limit=4)
                 if history: model_messages.extend(history)
                 model_messages.append({"role": "user", "content": user_message})
@@ -309,8 +315,7 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             if "choices" in data and data["choices"]:
                 content = data["choices"][0]["message"]["content"]
                 
-                # 🛡️ ✅ АВТО-ФИЛЬТР ЗАГЛУШЕК БЕЗОПАСНОСТИ ("User Safety: safe")
-                # Если модель выдает бред про безопасность — мы её игнорируем и идем к следующей модели.
+                # Фильтр пустых заглушек безопасности OpenRouter
                 if "user safety" in content.lower() or content.strip() == "":
                     logger.warning(f"⚠️ Модель {model} выдала заглушку безопасности. Пропускаем.")
                     return None
@@ -325,11 +330,10 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             logger.error(f"❌ Ошибка вызова {model}: {e}")
             return None
 
-    # Если есть картинка — бьем монолитным Vision-пакетом по зрячим моделям
     if image_data:
         vision_models = [
-            "meta-llama/llama-3.2-11b-vision-instruct:free", # Стабильнее
-            "google/gemini-2.5-flash:free",                  # Умнее, но капризнее
+            "meta-llama/llama-3.2-11b-vision-instruct:free",
+            "google/gemini-2.5-flash:free"
         ]
         for model in vision_models:
             logger.info(f"Отправляю монолитный Vision-пакет в {model}...")
@@ -337,7 +341,6 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             if res: return res
         logger.warning("⚠️ Все зрячие модели выдали ошибку. Переключаюсь на текст...")
 
-    # Текстовый бэкап
     text_models = [
         "google/gemma-4-31b-it:free",
         "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
