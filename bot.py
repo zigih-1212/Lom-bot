@@ -271,7 +271,7 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
 # ============ КЛАВИАТУРЫ И СТРУКТУРА МЕНЮ ============
 def main_menu_keyboard():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📸 АНАЛИЗ ФОТО НАВЫКОВ 📸", callback_data="photo_flow_start")], # Наша главная супер-кнопка
+        [InlineKeyboardButton("📸 АНАЛИЗ ФОТО НАВЫКОВ 📸", callback_data="photo_flow_start")],
         [InlineKeyboardButton(UI_TEXTS["classes_btn"], callback_data="menu_classes"),
          InlineKeyboardButton(UI_TEXTS["builds_btn"], callback_data="menu_builds")],
         [InlineKeyboardButton(UI_TEXTS["pals_btn"], callback_data="menu_pals"),
@@ -290,13 +290,40 @@ def photo_flow_classes_keyboard():
     ])
 
 def p_warrior_keyboard():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("🛡️ Боевой Мудрец", callback_data="p_flow_martial_sage"), InlineKeyboardButton("⚔️ Вестник Войны", callback_data="p_flow_warbringer")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="photo_flow_start")]])
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🛡️ Боевой Мудрец", callback_data="p_flow_martial_sage"),
+         InlineKeyboardButton("⚔️ Вестник Войны", callback_data="p_flow_warbringer")],
+        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="photo_flow_start")]
+    ])
+
 def p_archer_keyboard():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("🌿 Священный Охотник", callback_data="p_flow_sacred_hunter"), InlineKeyboardButton("🪶 Повелитель Перьев", callback_data="p_flow_plume")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="photo_flow_start")]])
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🌿 Священный Охотник", callback_data="p_flow_sacred_hunter"),
+         InlineKeyboardButton("🪶 Повелитель Перьев", callback_data="p_flow_plume")],
+        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="photo_flow_start")]
+    ])
+
 def p_mage_keyboard():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("✨ Пророк", callback_data="p_flow_prophet"), InlineKeyboardButton("🌑 Тёмный Владыка", callback_data="p_flow_darklord")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="photo_flow_start")]])
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✨ Пророк", callback_data="p_flow_prophet"),
+         InlineKeyboardButton("🌑 Тёмный Владыка", callback_data="p_flow_darklord")],
+        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="photo_flow_start")]
+    ])
+
 def p_tamer_keyboard():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="p_flow_beastmaster"), InlineKeyboardButton("💀 Верховный Дух", callback_data="p_flow_supreme")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="photo_flow_start")]]),
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="p_flow_beastmaster"),
+         InlineKeyboardButton("💀 Верховный Дух", callback_data="p_flow_supreme")],
+        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="photo_flow_start")]
+    ])
+
+def classes_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🗡️ Воин", callback_data="class_warrior"),
+         InlineKeyboardButton("🏹 Лучник", callback_data="class_archer")],
+        [InlineKeyboardButton("🔮 Маг", callback_data="class_mage"),
+         InlineKeyboardButton("🐉 Укротитель", callback_data="class_tamer")],
+        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")],
     ])
 
 def warrior_keyboard():
@@ -346,26 +373,53 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not await is_approved(user_id): return
 
-    # ✅ Нажимая кнопку ФОТО, предлагаем выбрать класс
+    if data.startswith("adm_ok_") or data.startswith("adm_no_"):
+        if user_id != ADMIN_ID: return
+        t_id = int(data.split("_")[2])
+        if data.startswith("adm_ok_"):
+            await save_approved_user(t_id)
+            await query.edit_message_text(f"✅ Пользователь {t_id} одобрен.")
+            try: await context.bot.send_message(t_id, "🎉 Доступ одобрен! Нажмите /start")
+            except: pass
+        else: await query.edit_message_text(f"❌ Отклонено.")
+        return
+
+    # Начало потока фото
     if data == "photo_flow_start":
-        context.user_data['p_awaiting'] = False  # Сбрасываем старые состояния
+        context.user_data['p_awaiting'] = False
         await query.edit_message_text(
-            "📸 *Режим анализа скриншотов*\n\nВыбери класс своего персонажа, для которого ИИ должен подобрать идеальные навыки со скриншота:", 
+            "📸 *Режим анализа скриншотов*\n\nВыбери основной класс твоего персонажа:", 
             parse_mode="Markdown", 
             reply_markup=photo_flow_classes_keyboard()
         )
         return
 
-    # ✅ После выбора класса просим прислать скриншот
+    # Выбор главного класса открывает подклассы
+    if data.startswith("p_main_"):
+        main_cls = data.split("_")[2]
+        kb_map = {"warrior": p_warrior_keyboard, "archer": p_archer_keyboard, "mage": p_mage_keyboard, "tamer": p_tamer_keyboard}
+        await query.edit_message_text("🔮 Теперь выбери точный подкласс персонажа:", reply_markup=kb_map[main_cls]())
+        return
+
+    # Финальный выбор конкретного подкласса
     if data.startswith("p_flow_"):
-        chosen_class = data.split("_")[2]
+        chosen_subclass = data.split("_")[2]
         context.user_data['p_awaiting'] = True
-        context.user_data['p_class'] = chosen_class
+        context.user_data['p_class'] = chosen_subclass
         
-        class_ru = {"warrior": "Воина", "archer": "Лучника / Повелителя Перьев", "mage": "Мага", "tamer": "Укротителя"}
+        class_ru = {
+            "martial_sage": "Боевого Мудреца (Танк)", 
+            "warbringer": "Вестника Войны (Ближний бой)", 
+            "sacred_hunter": "Священного Охотника (Анти-маг)", 
+            "plume": "Повелителя Перьев (Лучник комбо/крит)", 
+            "prophet": "Пророка (Маг контроля)", 
+            "darklord": "Тёмного Владыки (Взрывной маг)", 
+            "beastmaster": "Повелителя Зверей (Призыватель)", 
+            "supreme": "Верховного Духа (Призыватель-танк)"
+        }
         await query.edit_message_text(
             f"📥 *Отлично! Я готов.*\n\nТеперь просто отправь мне **скриншот** своего инвентаря навыков.\n"
-            f"Я проанализирую картинку специально под класс: *{class_ru.get(chosen_class)}*.\n\n"
+            f"Я проанализирую картинку специально под подкласс: *{class_ru.get(chosen_subclass)}*.\n\n"
             f"⚠️ Текст писать не нужно, просто пришли фото!", 
             parse_mode="Markdown"
         )
@@ -393,37 +447,38 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(UI_TEXTS["rate_limit_msg"].format(seconds=secs))
         return
 
-    # 🚫 ЕСЛИ ПОЛЬЗОВАТЕЛЬ ПРИСЛАЛ ФОТО
+    # Если пользователь прислал фото
     if update.message.photo:
-        # Если он НЕ нажал кнопку "📸 Анализ фото" заранее
         if not context.user_data.get('p_awaiting'):
             await update.message.reply_text(
                 "⚠️ *Я не могу принять фото напрямую!*\n\n"
-                "Чтобы я корректно прочитал скриншот, нажми сначала кнопку **📸 АНАЛИЗ ФОТО НАВЫКОВ 📸** в Главном меню и выбери свой класс персонажа.",
+                "Чтобы я корректно прочитал скриншот, нажми сначала кнопку **📸 АНАЛИЗ ФОТО НАВЫКОВ 📸** в Главном меню и выбери свой подкласс персонажа.",
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Открыть меню /menu", callback_data="menu_main")]])
             )
             return
 
-        # Если он прошёл по кнопкам, обрабатываем фото!
         status_msg = await update.message.reply_text("🍄 Изучаю твой скриншот навыков... Секунду...")
         
         photo_file = await update.message.photo[-1].get_file()
         photo_bytes = await photo_file.download_as_bytearray()
         image_data = base64.b64encode(photo_bytes).decode("utf-8")
         
-        chosen_class = context.user_data.get('p_class', 'archer')
-        class_ru = {"warrior": "Воин", "archer": "Лучник / Повелитель Перьев", "mage": "Маг", "tamer": "Укротитель"}
+        chosen_class = context.user_data.get('p_class', 'plume')
+        class_ru = {
+            "martial_sage": "Боевой Мудрец", "warbringer": "Вестник Войны",
+            "sacred_hunter": "Священный Охотник", "plume": "Повелитель Перьев",
+            "prophet": "Пророк", "darklord": "Тёмный Владыка",
+            "beastmaster": "Повелитель Зверей", "supreme": "Верховный Дух"
+        }
         
-        # Сами создаем автоматический пуленепробиваемый промпт для ИИ
         ai_prompt = (
             f"Внимательно изучи прикрепленный скриншот меню навыков Legend of Mushroom.\n"
-            f"Игрок играет за класс: {class_ru.get(chosen_class)}.\n"
+            f"Игрок играет за точный подкласс: {class_ru.get(chosen_class)}.\n"
             f"Выполни задание по нашему алгоритму анализа: найди все иконки в инвентаре, определи уровни и "
-            f"дай подробные инструкции, что поставить в активные слоты для этого класса."
+            f"дай подробные инструкции, что поставить в активные слоты для этого конкретного подкласса."
         )
         
-        # Сбрасываем режим ожидания, чтобы в следующий раз он снова нажимал кнопку
         context.user_data['p_awaiting'] = False
         context.user_data['p_class'] = None
         
