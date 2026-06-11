@@ -44,9 +44,9 @@ SYSTEM_PROMPT = """You are Shroom Helper — an expert AI assistant for the mobi
 - "Летучий питомец", "птица", "летун", "птичка", "пет-птица" = Авиан (Avian) / Дух.
 - "Стрелок", "лук", "хант" = Лучник (подклассы: Повелитель Перьев, Священный Охотник).
 - "Пет", "питомец", "пал", "спутник" = Питомцы (Pals).
-- "Танк", "меч", "щит" = Воин (подклассы: Blevei Mudrets, Vestnik Voyny).
-- "Колдун", "прокаст" = Маг (подклассы: Prorok, Tyomny Vladyka).
-- "Навыки", "скиллы", "кнопки", "активки" = Активные навыки персонажа.
+- "Танк", "меч", "щит" = Воин (подклассы: Боевой Мудрец, Вестник Войны).
+- "Колдун", "прокаст" = Маг (подклассы: Пророк, Тёмный Владыка).
+- "Навыки", "скиллы", "кнопки", "активки" = Active-навыки персонажа.
 
 📸 ПРАВИЛА АНАЛИЗА СКРИНШОТОВ (КРИТИЧЕСКИ ВАЖНО):
 Ты обязан изучить картинку и дать подробный разбор:
@@ -228,8 +228,8 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
         }
     }
 
-    # ✅ ИСПРАВЛЕНО: Переключено на официальное имя модели gemini-1.5-flash
-url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+
     try:
         async with httpx.AsyncClient(timeout=40) as client:
             response = await client.post(url, headers={"Content-Type": "application/json"}, json=payload)
@@ -241,7 +241,6 @@ url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash
                 logger.info("🦾 Прямой успешный ответ от официального Google Gemini API!")
                 return ai_text
         
-        # 🛡️ ВЫВОДИМ ТОЧНУЮ ОШИБКУ НАПРАВЛЯЕМУЮ В ЧАТ ДЛЯ ХИРУРГИЧЕСКОГО ДЕБАГА
         error_details = f"Ошибка Google API (Статус {response.status_code}): {response.text}"
         logger.error(f"❌ {error_details}")
         return f"❌ {error_details[:250]}"
@@ -315,7 +314,7 @@ def archer_keyboard():
 def mage_keyboard():
     return InlineKeyboardMarkup([[InlineKeyboardButton("✨ Пророк", callback_data="class_prophet"), InlineKeyboardButton("🌑 Тёмный Владыка", callback_data="class_darklord")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")]])
 def tamer_keyboard():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="class_beastmaster"), InlineKeyboardButton("💀 Верховный Дух", callback_data="class_supreme")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="class_classes")]])
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="class_beastmaster"), InlineKeyboardButton("💀 Верховный Дух", callback_data="class_supreme")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")]])
 
 CLASS_INFO = {
     "class_warrior": ("⚔️ Воин", "Основной класс ближнего боя. Высокая защита и контрудары.", warrior_keyboard),
@@ -461,8 +460,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['p_class'] = None
         
         ai_response = await ask_ai(ai_prompt, user_id, image_data)
-        
-        # Бот выведет успешный ответ или КРИСТАЛЬНО ТОЧНЫЙ ЛОГ ОШИБКИ ИЗ GOOGLE
         await status_msg.edit_text(ai_response)
         return
 
