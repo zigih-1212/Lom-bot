@@ -132,12 +132,12 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
         "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
         "contents": contents,
         "generationConfig": {
-            "maxOutputTokens": 3072,  # ✅ УВЕЛИЧИЛИ ЛИМИТ!
+            "maxOutputTokens": 3072,
             "temperature": 0.3
         }
     }
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
 
     try:
         async with httpx.AsyncClient(timeout=60) as client:
@@ -147,9 +147,9 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             data = response.json()
             if "candidates" in data and data["candidates"]:
                 return data["candidates"][0]["content"]["parts"][0]["text"]
-        return f"❌ Ошибка Google API (Статус {response.status_code})"
+        return f"❌ Ошибка Google API (Статус {response.status_code}): {response.text[:200]}"
     except Exception as e:
-        return f"❌ Ошибка: {str(e)}"
+        return f"❌ Ошибка сети: {str(e)}"
 
 # ============ КЛАВИАТУРЫ ============
 def main_menu_keyboard():
@@ -161,11 +161,12 @@ def photo_flow_classes_keyboard():
         [InlineKeyboardButton("🔮 Маг", callback_data="p_main_mage"), InlineKeyboardButton("🐉 Укротитель", callback_data="p_main_tamer")]
     ])
 
-# Вспомогательные клавиатуры для подклассов
 def p_warrior_keyboard(): return InlineKeyboardMarkup([[InlineKeyboardButton("🛡️ Боевой Мудрец", callback_data="p_flow_martial_sage"), InlineKeyboardButton("⚔️ Вестник Войны", callback_data="p_flow_warbringer")]])
 def p_archer_keyboard(): return InlineKeyboardMarkup([[InlineKeyboardButton("🌿 Священный Охотник", callback_data="p_flow_sacred_hunter"), InlineKeyboardButton("🪶 Повелитель Перьев", callback_data="p_flow_plume")]])
 def p_mage_keyboard(): return InlineKeyboardMarkup([[InlineKeyboardButton("✨ Пророк", callback_data="p_flow_prophet"), InlineKeyboardButton("🌑 Тёмный Владыка", callback_data="p_flow_darklord")]])
 def p_tamer_keyboard(): return InlineKeyboardMarkup([[InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="p_flow_beastmaster"), InlineKeyboardButton("💀 Верховный Дух", callback_data="p_flow_supreme")]])
+
+CLASS_INFO = {}
 
 # ============ ХЭНДЛЕРЫ ============
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -189,7 +190,22 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         photo_bytes = await (await update.message.photo[-1].get_file()).download_as_bytearray()
         image_data = base64.b64encode(photo_bytes).decode("utf-8")
         
-        ai_response = await ask_ai(f"Проанализируй навыки для {context.user_data.get('p_class')}", update.effective_user.id, image_data)
+        class_map = {
+            "martial_sage": "Боевой Мудрец", "warbringer": "Вестник Войны",
+            "sacred_hunter": "Священный Охотник", "plume": "Повелитель Перьев",
+            "prophet": "Пророк", "darklord": "Тёмный Владыка",
+            "beastmaster": "Повелитель Зверей", "supreme": "Верховный Дух"
+        }
+        chosen_subclass = class_map.get(context.user_data.get('p_class'), "Повелитель Перьев")
+        
+        ai_prompt = (
+            f"Внимательно изучи прикрепленный скриншот меню навыков Legend of Mushroom.\n"
+            f"Игрок играет за точный подкласс: {chosen_subclass}.\n"
+            f"Выполни задание: найди все иконки в инвентаре, определи их уровни (Lv.) и "
+            f"дай подробные инструкции, что поставить в активные слоты для этого конкретного подкласса."
+        )
+        
+        ai_response = await ask_ai(ai_prompt, update.effective_user.id, image_data)
         context.user_data['p_awaiting'] = False
         await status_msg.edit_text(ai_response, parse_mode="Markdown")
     elif update.message.text:
@@ -198,8 +214,14 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await add_conversation(update.effective_user.id, "assistant", resp)
         await update.message.reply_text(resp, parse_mode="Markdown")
 
+# ✅ ПРАВИЛЬНЫЙ АСИНХРОННЫЙ СТАРТ ПОСТ-ИНИЦИАЛИЗАЦИИ БЕЗ ОШИБОК LOOP
+async def post_init(application):
+    await init_db()
+    logger.info("✓ База данных успешно инициализирована внутри рабочего цикла!")
+
 def main():
-    application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(lambda app: asyncio.create_task(init_db())).build()
+    if not TELEGRAM_TOKEN: return
+    application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
     application.add_handler(CommandHandler("start", lambda u, c: send_welcome(c.bot, u.effective_user.id)))
     application.add_handler(CommandHandler("menu", lambda u, c: u.message.reply_text("Меню:", reply_markup=main_menu_keyboard())))
     application.add_handler(CallbackQueryHandler(button_handler))
