@@ -32,14 +32,13 @@ GUIDE_URL = os.environ.get("GUIDE_URL")
 
 DB_PATH = "bot_data.db"
 
-# Обновленный список: авто-роутер и рабочие Vision-модели
+# ✅ СПИСОК УМНЫХ МОДЕЛЕЙ (Графические на первых местах)
 MODELS = [
-    "google/gemini-2.5-flash:free",                  # Напрямую бьем в Gemini
-    "meta-llama/llama-3.2-11b-vision-instruct:free", # Напрямую в Llama Vision
+    "meta-llama/llama-3.2-11b-vision-instruct:free", # Стабильная зрячая модель
+    "google/gemini-2.5-flash:free",                  # Капризная, но умная зрячая модель
     "google/gemma-4-31b-it:free",
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
-
 
 USER_COOLDOWNS = {}
 RATE_LIMIT_PER_MINUTE = 10
@@ -49,7 +48,7 @@ RATE_LIMIT_TIMEOUT = 60
 KNOWLEDGE_TEXT = ""
 DYNAMIC_EVENTS = "Свежих новостей об ивентах пока не поступало." 
 
-# Системные правила для ИИ с жестким алгоритмом чтения скриншотов
+# ✅ ПРОДВИНУТЫЙ ИИ-ПРОМПТ С АЛГОРИТМОМ АНАЛИЗА СКРИНШОТОВ
 SYSTEM_PROMPT = """You are Shroom Helper — an expert AI assistant for the mobile game Legend of Mushroom (LoM).
 
 🚨 ИГРОВОЙ СЛОВАРЬ СЛЕНГА (Обязательно используй для понимания игрока):
@@ -251,51 +250,7 @@ class DiscordBridge(discord.Client):
                     f.write(DYNAMIC_EVENTS)
             except Exception as e: logger.error(f"Save events error: {e}")
 
-# ============ НЕЙРОСЕТЬ ИИ ============
-async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str:
-    # Собираем короткий контекст билдов из кнопок
-    class_guides_context = ""
-    try:
-        text_blocks = []
-        for key, val in CLASS_INFO.items():
-            text_blocks.append(f"Класс: {val[0]}\nГайд:\n{val[1]}")
-        class_guides_context = "\n\n".join(text_blocks)
-    except Exception as e:
-        logger.error(f"Ошибка при сборке CLASS_INFO для ИИ: {e}")
-
-    async def try_model(model, is_vision_mode):
-        try:
-            if is_vision_mode and image_data:
-                # ✅ ОБЛЕГЧЕННЫЙ ВАРИАНТ ДЛЯ ГРАФИКИ: Убираем тяжелые файлы, чтобы уложиться в бесплатный лимит OpenRouter.
-                # Теперь Gemini гарантированно запустится и увидит скриншот!
-                v_prompt = (
-                    f"Краткий контекст билдов игры:\n{class_guides_context}\n\n"
-                    f"ЗАДАНИЕ ДЛЯ ВЫСОКОТОЧНОГО АНАЛИЗА СКРИНШОТА:\n"
-                    f"1. На скриншоте меню навыков Legend of Mushroom. Внимательно изучи иконки и мелкие цифры уровней (Lv.) под ними.\n"
-                    f"2. Если ты не уверен в точном русском названии навыка, ОБЯЗАТЕЛЬНО опиши его визуально по цвету и форме! Например: 'фиолетовый череп/яд Lv.19', 'зеленый кулак/листья Lv.5', 'золотой щит/монета Lv.4', 'желтая молния Lv.5'. Игрок поймет тебя по цвету картинки!\n"
-                    f"3. Очень внимательно посмотри на цифры уровней внизу каждой иконки, не выдумывай их.\n"
-                    f"4. Дай совет для Лучника: какие навыки из тех, что ты видишь (описывая их по цветам и уровням), нужно убрать из верхнего экипированного ряда, а какие поставить из нижней сетки инвентаря.\n"
-                    f"Вопрос игрока: {user_message}"
-                )
-
-
-                model_messages = [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": v_prompt},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
-                        ]
-                    }
-                ]
-            else:
-                # Классический текстовый режим (включает файлы и историю чата)
-                db_context = (
-                    f"=== ИГРОВАЯ БАЗА ЗНАНИЙ И ГАЙДЫ ===\n{class_guides_context}\n\n"
-                    f"{KNOWLEDGE_TEXT}\n\n"
-                    f"=== АКТУАЛЬНЫЕ ИВЕНТЫ ===\n{DYNAMIC_EVENTS}"
-                )
+# ============ ✅ УМНАЯ НЕЙРОСЕТЬ С ✅ ФИЛЬТРОМ ОШИБОК БЕЗОПАСНОСТИ ============
 async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str:
     class_guides_context = ""
     try:
@@ -306,30 +261,14 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
     except Exception as e:
         logger.error(f"Ошибка при сборке CLASS_INFO для ИИ: {e}")
 
+    # Внутренняя функция для отправки запроса
     async def try_model(model, is_vision_mode):
         try:
             if is_vision_mode and image_data:
-                v_prompt = (
-                    f"Краткий контекст билдов игры:\n{class_guides_context}\n\n"
-                    f"ЗАДАНИЕ ДЛЯ ВЫСОКОТОЧНОГО АНАЛИЗА СКРИНШОТА:\n"
-                    f"1. На скриншоте меню навыков Legend of Mushroom. Внимательно изучи иконки и мелкие цифры уровней (Lv.) под ними.\n"
-                    f"2. Если ты не уверен в точном русском названии навыка, ОБЯЗАТЕЛЬНО опиши его визуально по цвету и форме! Например: 'фиолетовый череп/яд Lv.19', 'зеленый кулак/листья Lv.5', 'золотой щит/монета Lv.4', 'желтая молния Lv.5'. Игрок поймет тебя по цвету картинки!\n"
-                    f"3. Очень внимательно посмотри на цифры уровней внизу каждой иконки, не выдумывай их.\n"
-                    f"4. Дай совет для Лучника: какие навыки из тех, что ты видишь (описывая их по цветам и уровням), нужно убрать из верхнего экипированного ряда, а какие поставить из нижней сетки инвентаря.\n"
-async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str:
-    class_guides_context = ""
-    try:
-        text_blocks = []
-        for key, val in CLASS_INFO.items():
-            text_blocks.append(f"Класс: {val[0]}\nГайд:\n{val[1]}")
-        class_guides_context = "\n\n".join(text_blocks)
-    except Exception as e:
-        logger.error(f"Ошибка при сборке CLASS_INFO для ИИ: {e}")
-
-    async def try_model(model, is_vision_mode):
-        try:
-            if is_vision_mode and image_data:
-                v_prompt = (
+                # ✅ МОНОЛИТНЫЙ ПАКЕТ ДЛЯ "ГЛАЗ": Упаковываем всё в один ход 'user' для Vision-моделей. 
+                # Это гарантирует, что ИИ не забудет контекст промпта.
+                full_prompt = (
+                    f"{SYSTEM_PROMPT}\n\n"
                     f"Краткий контекст билдов игры:\n{class_guides_context}\n\n"
                     f"ЗАДАНИЕ ДЛЯ ВЫСОКОТОЧНОГО АНАЛИЗА СКРИНШОТА:\n"
                     f"1. На скриншоте меню навыков Legend of Mushroom. Внимательно изучи иконки и мелкие цифры уровней (Lv.) под ними.\n"
@@ -339,25 +278,17 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
                     f"Вопрос игрока: {user_message}"
                 )
                 model_messages = [
-                    {"role": "system", "content": SYSTEM_PROMPT},
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": v_prompt},
+                            {"type": "text", "text": full_prompt},
                             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
                         ]
                     }
                 ]
             else:
-                db_context = (
-                    f"=== ИГРОВАЯ БАЗА ЗНАНИЙ И ГАЙДЫ ===\n{class_guides_context}\n\n"
-                    f"{KNOWLEDGE_TEXT}\n\n"
-                    f"=== АКТУАЛЬНЫЕ ИВЕНТЫ ===\n{DYNAMIC_EVENTS}"
-                )
+                # Облегченный текстовый режим (убираем файлы, чтобы влезть в лимит)
                 model_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-                model_messages.append({"role": "user", "content": db_context})
-                model_messages.append({"role": "assistant", "content": "Принято, база данных в памяти. Слушаю вопрос игрока."})
-                
                 history = await get_conversation_history(user_id, limit=4)
                 if history: model_messages.extend(history)
                 model_messages.append({"role": "user", "content": user_message})
@@ -378,8 +309,8 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             if "choices" in data and data["choices"]:
                 content = data["choices"][0]["message"]["content"]
                 
-                # 🛡️ АВТО-ФИЛЬТР ЗАГЛУШЕК БЕЗОПАСНОСТИ
-                # Если модель выдает "User Safety: safe" — мы бракуем ответ и идем к следующей модели
+                # 🛡️ ✅ АВТО-ФИЛЬТР ЗАГЛУШЕК БЕЗОПАСНОСТИ ("User Safety: safe")
+                # Если модель выдает бред про безопасность — мы её игнорируем и идем к следующей модели.
                 if "user safety" in content.lower() or content.strip() == "":
                     logger.warning(f"⚠️ Модель {model} выдала заглушку безопасности. Пропускаем.")
                     return None
@@ -388,91 +319,20 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
                 return content
             
             if "error" in data:
-                logger.error(f"⚠️ Ошибка OpenRouter для модели {model}: {data['error']}")
+                logger.error(f"⚠️ Ошибка OpenRouter для {model}: {data['error']}")
             return None
         except Exception as e:
             logger.error(f"❌ Ошибка вызова {model}: {e}")
             return None
 
-    if image_data:
-        # Ставим Llama на первое место, так как Gemini сбоит фильтрами
-        vision_models = [
-            "meta-llama/llama-3.2-11b-vision-instruct:free",
-            "google/gemini-2.5-flash:free"
-        ]
-        for model in vision_models:
-            logger.info(f"Отправляю облегченный пакет со скриншотом в {model}...")
-            res = await try_model(model, is_vision_mode=True)
-            if res: return res
-        logger.warning("⚠️ Все зрячие модели выдали ошибку. Переключаюсь на текст...")
-
-    text_models = [
-        "google/gemma-4-31b-it:free",
-        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
-    ]
-    for model in text_models:
-        res = await try_model(model, is_vision_mode=False)
-        if res: return res
-
-    return None
-
-    if image_data:
-        # Ставим Llama на первое место, так как Gemini сбоит фильтрами
-        vision_models = [
-            "meta-llama/llama-3.2-11b-vision-instruct:free",
-            "google/gemini-2.5-flash:free"
-        ]
-        for model in vision_models:
-            logger.info(f"Отправляю облегченный пакет со скриншотом в {model}...")
-            res = await try_model(model, is_vision_mode=True)
-            if res: return res
-        logger.warning("⚠️ Все зрячие модели выдали ошибку. Переключаюсь на текст...")
-
-    text_models = [
-        "google/gemma-4-31b-it:free",
-        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
-    ]
-    for model in text_models:
-        res = await try_model(model, is_vision_mode=False)
-        if res: return res
-
-    return None
-
-
-    # Если есть картинка — отправляем облегченный Vision-пакет
+    # Если есть картинка — бьем монолитным Vision-пакетом по зрячим моделям
     if image_data:
         vision_models = [
-            "openrouter/free",
-            "google/gemma-4-31b-it:free",
-            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+            "meta-llama/llama-3.2-11b-vision-instruct:free", # Стабильнее
+            "google/gemini-2.5-flash:free",                  # Умнее, но капризнее
         ]
         for model in vision_models:
-            logger.info(f"Отправляю облегченный пакет со скриншотом в {model}...")
-            res = await try_model(model, is_vision_mode=True)
-            if res: return res
-        logger.warning("⚠️ Все зрячие модели выдали ошибку. Переключаюсь на текст...")
-
-
-    # Текстовый режим
-    text_models = [
-        "google/gemma-4-31b-it:free",
-        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
-    ]
-    for model in text_models:
-        res = await try_model(model, is_vision_mode=False)
-        if res: return res
-
-    return None
-
-
-    # Если есть картинка — бьем монолитным запросом строго по Vision-моделям
-    if image_data:
-        vision_models = [
-            "google/gemini-2.5-flash:free",
-            "meta-llama/llama-3.2-11b-vision-instruct:free"
-        ]
-        for model in vision_models:
-            logger.info(f"Отправляю облегченный пакет со скриншотом в {model}...")
+            logger.info(f"Отправляю монолитный Vision-пакет в {model}...")
             res = await try_model(model, is_vision_mode=True)
             if res: return res
         logger.warning("⚠️ Все зрячие модели выдали ошибку. Переключаюсь на текст...")
