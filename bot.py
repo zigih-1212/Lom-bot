@@ -32,10 +32,10 @@ GUIDE_URL = os.environ.get("GUIDE_URL")
 
 DB_PATH = "bot_data.db"
 
-# ✅ СПИСОК УМНЫХ МОДЕЛЕЙ (Графические на первых местах)
+# Список рабочих ИИ-моделей
 MODELS = [
-    "meta-llama/llama-3.2-11b-vision-instruct:free", # Стабильная зрячая модель
-    "google/gemini-2.5-flash:free",                  # Капризная, но умная зрячая модель
+    "meta-llama/llama-3.2-11b-vision-instruct:free",
+    "google/gemini-2.5-flash:free",
     "google/gemma-4-31b-it:free",
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
@@ -48,10 +48,9 @@ RATE_LIMIT_TIMEOUT = 60
 KNOWLEDGE_TEXT = ""
 DYNAMIC_EVENTS = "Свежих новостей об ивентах пока не поступало." 
 
-# ✅ ПРОДВИНУТЫЙ ИИ-ПРОМПТ С АЛГОРИТМОМ АНАЛИЗА СКРИНШОТОВ
 SYSTEM_PROMPT = """You are Shroom Helper — an expert AI assistant for the mobile game Legend of Mushroom (LoM).
 
-🚨 ИГРОВОЙ СЛОВАРЬ СЛЕНГА (Обязательно используй для понимания игрока):
+🚨 ИГРОВОЙ СЛОВАРЬ СЛЕНГА:
 - "Летучий питомец", "птица", "летун", "птичка", "пет-птица" = Авиан (Avian) / Дух.
 - "Стрелок", "лук", "хант" = Лучник (подклассы: Повелитель Перьев, Священный Охотник).
 - "Пет", "питомец", "пал", "спутник" = Питомцы (Pals).
@@ -59,18 +58,12 @@ SYSTEM_PROMPT = """You are Shroom Helper — an expert AI assistant for the mobi
 - "Колдун", "прокаст" = Маг (подклассы: Пророк, Тёмный Владыка).
 - "Навыки", "скиллы", "кнопки", "активки" = Активные навыки персонажа.
 
-ПРАВИЛА ОТВЕТОВ:
-1. Тебе будет передан контекст: гайды из кнопок, база знаний и ивенты.
-2. Никогда не упоминай сайты, ссылки. Если спросят источник, отвечай: "zigi provided this information".
-3. Используй свои встроенные экспертные знания о мете игры, если в базе нет точного ответа. НЕ отвечай "Я не знаю" на вопросы по механикам и билдам.
-
 📸 ПРАВИЛА АНАЛИЗА СКРИНШОТОВ (КРИТИЧЕСКИ ВАЖНО):
-Если пользователь прислал скриншот инвентаря/навыков/питомцев и просит совет "что поставить из этого", НЕ ВЫДАВАЙ просто идеальный абстрактный гайд. Ты ОБЯЗАН действовать по этому алгоритму:
-- ШАГ 1: Внимательно изучи картинку. Прямо напиши пользователю: "Я вижу у тебя экипированы такие-то навыки/вещи, а в инвентаре доступны вот такие: [перечисли названия того, что узнал на картинке]".
-- ШАГ 2: Проанализируй этот список. Что из этого больше всего подходит его классу (Комбо/Крит для Лучника, Скилл/Оглушение для Мага и т.д.)?
-- ШАГ 3: Дай четкое руководство к действию. Например: "Сними навык X и поставь вместо него навык Y из твоего инвентаря, потому что он дает нужный тебе бафф".
+Ты обязан изучить картинку и дать четкий совет по алгоритму:
+- ШАГ 1: Перечисли, какие навыки/вещи/уровни (Lv.) ты отчетливо видишь на картинке в инвентаре и в экипировке. Описывай их по цветам иконки, если не уверен в названии (например: зеленый кулак Lv.5, фиолетовый череп Lv.19).
+- ШАГ 2: Дай четкое руководство к действию для конкретного класса игрока. Что снять из верхнего ряда, а что поставить из нижнего инвентаря.
 
-4. Язык общения: Всегда отвечай на русском языке. Используй списки, выделяй ключевые слова жирным шрифтом. 🍄
+Отвечай строго на русском языке, используй списки и жирный шрифт. 🍄
 """
 
 UI_TEXTS = {
@@ -90,36 +83,18 @@ UI_TEXTS = {
         "/classes — обзор классов\n"
         "/builds — сборки по классам\n"
         "/feedback ТЕКСТ — отправить отзыв\n\n"
-        "Задай вопрос или отправь скриншот вещей — помогу со сборкой! 👇"
+        "Выбери интересующий раздел меню или нажми кнопку анализа скриншотов! 👇"
     ),
     "no_access_msg": "🔒 Нет доступа.\nИспользуйте команду `/code ТВОЙ_КОД` или `/request` для запроса доступа.",
     "rate_limit_msg": "⏳ Подождите ещё {seconds} сек...",
     "menu_title": "🍄 Главное меню:",
     "classes_title": "⚔️ Выбери класс:",
     "builds_title": "🏹 *Быстрый гайд по сборкам:*\n\n",
-    "pals_title": "🐾 *Питомцы (Pals):*\n\nПитомцы дают пассивные бонусы и наносят урон.\n\n🔑 Разблокируй Розовых питомцев для Укротителя\n📈 Повелитель Зверей — лучше с питомцами 200+ уровня\n💀 Верховный Дух — зависит от расстановки питомцев\n\nЗадай вопрос для подробностей! 🍄",
+    "pals_title": "🐾 *Питомцы (Pals):*\n\nЗадай вопрос для подробностей! 🍄",
     "events_title": "📅 Задай вопрос об актуальных ивентах и я расскажу что знаю! 🍄",
-    "beginner_title": (
-        "💡 *Советы новичку:*\n\n"
-        "🏹 Начни с Лучника — лучший для ПвЕ\n"
-        "🤝 Вступи в альянс как можно раньше\n"
-        "⚡ На уровне 30 — первое разветвление классов\n"
-        "⚡ На уровне 50 — финальное разветвление\n"
-        "🪶 Повелитель Перьев — лучший старт\n"
-        "⚔️ Вестник Войны — тоже можно сразу\n"
-        "🛡️ Танки — только с вечным снаряжением"
-    ),
-    "help_title": (
-        "❓ *Помощь:*\n\n"
-        "/menu — открыть меню\n"
-        "/classes — обзор классов\n"
-        "/builds — быстрый гайд по сборкам\n"
-        "/feedback ТЕКСТ — отправить отзыв\n"
-        "/request — запросить доступ\n\n"
-        "Просто напиши вопрос и я отвечу! 🍄"
-    ),
+    "beginner_title": "💡 *Советы новичку...*",
+    "help_title": "❓ *Помощь...*",
     "reload_success": "✅ База знаний перезагружена!",
-    "userstats_format": "👤 *Статистика пользователя {uid}:*\n\n🆔 ID: `{uid}`\n🔑 Статус: {status}\n💬 Всего вопросов: {q_count}\n🕒 Последний вопрос: {last_q}"
 }
 
 # ============ DATABASE (ASYNC) ============
@@ -174,46 +149,21 @@ async def increment_stats(user_id: int):
         await cursor.execute('UPDATE global_stats SET total_questions = total_questions + 1, questions_today = questions_today + 1 WHERE id = 1')
         await conn.commit()
 
-# ============ УМНАЯ ЗАГРУЗКА ЗНАНИЙ С САЙТА ИЛИ ФАЙЛА ============
 async def load_knowledge():
     global KNOWLEDGE_TEXT, DYNAMIC_EVENTS
-    
     if GUIDE_URL:
-        logger.info(f"Пробую обновить гайды с сайта: {GUIDE_URL}")
         try:
             async with httpx.AsyncClient(timeout=20) as client:
                 response = await client.get(GUIDE_URL)
                 if response.status_code == 200:
-                    if "docs.google.com" in GUIDE_URL and "format=txt" in GUIDE_URL:
-                        KNOWLEDGE_TEXT = response.text
-                    else:
-                        soup = BeautifulSoup(response.text, 'html.parser')
-                        for garbage in soup(["script", "style", "nav", "footer", "header"]):
-                            garbage.extract()
-                        KNOWLEDGE_TEXT = soup.get_text(separator="\n")
-                    
-                    with open("knowledge.txt", "w", encoding="utf-8") as f:
-                        f.write(KNOWLEDGE_TEXT)
-                    logger.info("✓ База знаний успешно обновлена напрямую с сайта!")
-                else:
-                    logger.warning(f"Сайт вернул ошибку {response.status_code}. Использую бэкап.")
-        except Exception as e:
-            logger.error(f"Не удалось скачать гайды из интернета ({e}). Загружаю локальный файл.")
-
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    for garbage in soup(["script", "style", "nav", "footer", "header"]): garbage.extract()
+                    KNOWLEDGE_TEXT = soup.get_text(separator="\n")
+        except Exception as e: logger.error(f"Load web knowledge error: {e}")
     if not KNOWLEDGE_TEXT:
         try:
-            with open("knowledge.txt", "r", encoding="utf-8") as f:
-                KNOWLEDGE_TEXT = f.read()
-            logger.info("База знаний загружена из локального файла")
-        except FileNotFoundError:
-            KNOWLEDGE_TEXT = "База знаний пуста. Добавьте файлы или настройте GUIDE_URL."
-    
-    try:
-        with open("latest_events.txt", "r", encoding="utf-8") as f:
-            DYNAMIC_EVENTS = f.read()
-        logger.info("Последние события загружены из файла")
-    except FileNotFoundError:
-        DYNAMIC_EVENTS = "Актуальных ивентов в базе пока нет."
+            with open("knowledge.txt", "r", encoding="utf-8") as f: KNOWLEDGE_TEXT = f.read()
+        except FileNotFoundError: KNOWLEDGE_TEXT = "База знаний пуста."
 
 def check_rate_limit(user_id: int):
     now = datetime.now()
@@ -225,8 +175,7 @@ def check_rate_limit(user_id: int):
     return False, 0
 
 async def send_welcome(bot, user_id: int):
-    try:
-        await bot.send_message(user_id, UI_TEXTS["welcome_msg"], parse_mode="Markdown", reply_markup=main_menu_keyboard())
+    try: await bot.send_message(user_id, UI_TEXTS["welcome_msg"], parse_mode="Markdown", reply_markup=main_menu_keyboard())
     except Exception as e: logger.error(f"Welcome error: {e}")
 
 # ============ ДИСКОРД МОСТ ============
@@ -235,44 +184,28 @@ class DiscordBridge(discord.Client):
         intents = discord.Intents.default()
         intents.message_content = True
         super().__init__(intents=intents, *args, **kwargs)
-
-    async def on_ready(self):
-        logger.info(f"✓ Мост Discord успешно запущен: {self.user}")
-
+    async def on_ready(self): logger.info(f"✓ Мост Discord запущен: {self.user}")
     async def on_message(self, message):
         global DYNAMIC_EVENTS
         if message.author == self.user: return
         if message.channel.id == DISCORD_CHANNEL_ID:
-            logger.info("Получено новое обновление ивентов из Discord!")
             DYNAMIC_EVENTS = message.content
-            try:
-                with open("latest_events.txt", "w", encoding="utf-8") as f:
-                    f.write(DYNAMIC_EVENTS)
-            except Exception as e: logger.error(f"Save events error: {e}")
 
-# ============ ✅ УМНАЯ НЕЙРОСЕТЬ С ✅ ФИЛЬТРОМ ОШИБОК БЕЗОПАСНОСТИ ============
+# ============ ИИ-НЕЙРОСЕТЬ С АВТОФИЛЬТРОМ БРАКА ============
 async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str:
     class_guides_context = ""
     try:
         text_blocks = []
-        for key, val in CLASS_INFO.items():
-            text_blocks.append(f"Класс: {val[0]}\nГайд:\n{val[1]}")
+        for key, val in CLASS_INFO.items(): text_blocks.append(f"Класс: {val[0]}\nГайд:\n{val[1]}")
         class_guides_context = "\n\n".join(text_blocks)
-    except Exception as e:
-        logger.error(f"Ошибка при сборке CLASS_INFO для ИИ: {e}")
+    except: pass
 
     async def try_model(model, is_vision_mode):
         try:
             if is_vision_mode and image_data:
-                # ✅ ИСПРАВЛЕНО: Возвращаем SYSTEM_PROMPT на свое законное место. 
-                # Теперь Llama и Gemini примут структуру запроса без внутренних ошибок!
                 v_prompt = (
-                    f"Контекст билдов:\n{class_guides_context}\n\n"
-                    f"ЗАДАНИЕ ДЛЯ АНАЛИЗА:\n"
-                    f"1. Посмотри на скриншот навыков Legend of Mushroom.\n"
-                    f"2. Перечисли увиденное по цветам и уровням (например: фиолетовый череп Lv.19, зеленый кулак Lv.5).\n"
-                    f"3. Дай совет Лучнику/Пернатому, какие навыки поставить в верхний ряд.\n"
-                    f"Вопрос от игрока: {user_message}"
+                    f"Контекст официальных билдов:\n{class_guides_context}\n\n"
+                    f"ЗАДАНИЕ: {user_message}"
                 )
                 model_messages = [
                     {"role": "system", "content": SYSTEM_PROMPT},
@@ -285,16 +218,12 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
                     }
                 ]
             else:
-                # Текстовый режим
-                db_context = (
-                    f"=== ИГРОВАЯ БАЗА ЗНАНИЙ И ГАЙДЫ ===\n{class_guides_context}\n\n"
-                    f"{KNOWLEDGE_TEXT}\n\n"
-                    f"=== АКТУАЛЬНЫЕ ИВЕНТЫ ===\n{DYNAMIC_EVENTS}"
-                )
-                model_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-                model_messages.append({"role": "user", "content": db_context})
-                model_messages.append({"role": "assistant", "content": "Принято, база данных в памяти. Слушаю вопрос игрока."})
-                
+                db_context = f"=== ГАЙДЫ ===\n{class_guides_context}\n\n{KNOWLEDGE_TEXT}\n\n=== ИВЕНТЫ ===\n{DYNAMIC_EVENTS}"
+                model_messages = [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": db_context},
+                    {"role": "assistant", "content": "База знаний принята. Слушаю текстовый вопрос игрока."},
+                ]
                 history = await get_conversation_history(user_id, limit=4)
                 if history: model_messages.extend(history)
                 model_messages.append({"role": "user", "content": user_message})
@@ -314,20 +243,14 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             data = response.json()
             if "choices" in data and data["choices"]:
                 content = data["choices"][0]["message"]["content"]
-                
-                # Фильтр пустых заглушек безопасности OpenRouter
                 if "user safety" in content.lower() or content.strip() == "":
-                    logger.warning(f"⚠️ Модель {model} выдала заглушку безопасности. Пропускаем.")
+                    logger.warning(f"⚠️ Заглушка безопасности от {model}. Пропускаем.")
                     return None
-                    
-                logger.info(f"🦾 Успешный ответ от нейросети: {model}")
+                logger.info(f"Успешный ответ от: {model}")
                 return content
-            
-            if "error" in data:
-                logger.error(f"⚠️ Ошибка OpenRouter для {model}: {data['error']}")
             return None
         except Exception as e:
-            logger.error(f"❌ Ошибка вызова {model}: {e}")
+            logger.error(f"Ошибка модели {model}: {e}")
             return None
 
     if image_data:
@@ -336,30 +259,34 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             "google/gemini-2.5-flash:free"
         ]
         for model in vision_models:
-            logger.info(f"Отправляю монолитный Vision-пакет в {model}...")
             res = await try_model(model, is_vision_mode=True)
             if res: return res
-        logger.warning("⚠️ Все зрячие модели выдали ошибку. Переключаюсь на текст...")
 
-    text_models = [
-        "google/gemma-4-31b-it:free",
-        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
-    ]
+    text_models = ["google/gemma-4-31b-it:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"]
     for model in text_models:
         res = await try_model(model, is_vision_mode=False)
         if res: return res
-
     return None
 
-# ============ КЛАВИАТУРЫ И КЛАССЫ ============
+# ============ КЛАВИАТУРЫ И СТРУКТУРА МЕНЮ ============
 def main_menu_keyboard():
     return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📸 АНАЛИЗ ФОТО НАВЫКОВ 📸", callback_data="photo_flow_start")], # Наша главная супер-кнопка
         [InlineKeyboardButton(UI_TEXTS["classes_btn"], callback_data="menu_classes"),
          InlineKeyboardButton(UI_TEXTS["builds_btn"], callback_data="menu_builds")],
         [InlineKeyboardButton(UI_TEXTS["pals_btn"], callback_data="menu_pals"),
          InlineKeyboardButton(UI_TEXTS["events_btn"], callback_data="menu_events")],
         [InlineKeyboardButton(UI_TEXTS["beginner_btn"], callback_data="menu_beginner"),
          InlineKeyboardButton(UI_TEXTS["help_btn"], callback_data="menu_help")],
+    ])
+
+def photo_flow_classes_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🗡️ Воин", callback_data="p_flow_warrior"),
+         InlineKeyboardButton("🏹 Лучник / Пернатый", callback_data="p_flow_archer")],
+        [InlineKeyboardButton("🔮 Маг", callback_data="p_flow_mage"),
+         InlineKeyboardButton("🐉 Укротитель", callback_data="p_flow_tamer")],
+        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")],
     ])
 
 def classes_keyboard():
@@ -372,181 +299,30 @@ def classes_keyboard():
     ])
 
 def warrior_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🛡️ Боевой Мудрец", callback_data="class_martial_sage"),
-         InlineKeyboardButton("⚔️ Вестник Войны", callback_data="class_warbringer")],
-        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")],
-    ])
-
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🛡️ Боевой Мудрец", callback_data="class_martial_sage"), InlineKeyboardButton("⚔️ Вестник Войны", callback_data="class_warbringer")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")]])
 def archer_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🌿 Священный Охотник", callback_data="class_sacred_hunter"),
-         InlineKeyboardButton("🪶 Повелитель Перьев", callback_data="class_plume")],
-        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")],
-    ])
-
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🌿 Священный Охотник", callback_data="class_sacred_hunter"), InlineKeyboardButton("🪶 Повелитель Перьев", callback_data="class_plume")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")]])
 def mage_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✨ Пророк", callback_data="class_prophet"),
-         InlineKeyboardButton("🌑 Тёмный Владыка", callback_data="class_darklord")],
-        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")],
-    ])
-
+    return InlineKeyboardMarkup([[InlineKeyboardButton("✨ Пророк", callback_data="class_prophet"), InlineKeyboardButton("🌑 Тёмный Владыка", callback_data="class_darklord")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")]])
 def tamer_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="class_beastmaster"),
-         InlineKeyboardButton("💀 Верховный Дух", callback_data="class_supreme")],
-        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")],
-    ])
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="class_beastmaster"), InlineKeyboardButton("💀 Верховный Дух", callback_data="class_supreme")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")]])
 
 CLASS_INFO = {
-    "class_warrior": (
-        "⚔️ Воин (Warrior)", 
-        """Основной класс ближнего боя. Базируется на высокой защите и контрударах. Прощает ошибки новичков благодаря выживаемости.
-
-📈 *Ключевые статы:* Атака, Урон контрудара, Урон крита, Защита.
-🛡️ *Снаряжение:* Контрудар / Крит шанс.
-
-Выбери подкласс ниже, чтобы увидеть детальный гайд! 👇""", 
-        warrior_keyboard
-    ),
-    "class_archer": (
-        "🏹 Лучник (Archer)", 
-        """Лучший класс для старта игры и зачистки ПвЕ-контента. Наносит урон за счет частых комбо-атак и высокой скорости.
-
-📈 *Ключевые статы:* Атака, Урон комбо, Урон крита, Скорость атаки.
-🏹 *Снаряжение:* Комбо / Крит шанс.
-
-Выбери подкласс ниже, чтобы увидеть детальный гайд! 👇""", 
-        archer_keyboard
-    ),
-    "class_mage": (
-        "🔮 Маг (Mage)", 
-        """Класс с упором на активные навыки (скиллы) и контроль противника через оглушение. Наносит огромный взрывной урон.
-
-📈 *Ключевые статы:* Атака, Урон скилла, Крит урон скилла, Оглушение.
-🔮 *Снаряжение:* Крит скилла / Оглушение.
-
-Выбери подкласс ниже, чтобы увидеть детальный гайд! 👇""", 
-        mage_keyboard
-    ),
-    "class_tamer": (
-        "🐉 Укротитель (Tamer)", 
-        """Уникальный класс, чья сила напрямую зависит от прокачки и расстановки твоих питомцев (Pals).
-
-📈 *Ключевые статы:* Атака, Урон питомца, Крит урон питомца.
-🐾 *Снаряжение:* Комбо питомца / Крит питомца.
-
-Выбери подкласс ниже, чтобы увидеть детальный гайд! 👇""", 
-        tamer_keyboard
-    ),
-    "class_martial_sage": (
-        "🛡️ Боевой Мудрец", 
-        """*Роль:* Бессмертный танк с бешеной регенерацией.
-
-✅ *Плюсы:* Идеален для долгих боев, высочайшая выживаемость.
-❌ *Минусы:* Низкий урон, бои в ПвП могут затягиваться.
-
-📈 *Главные статы:* Здоровье, Защита, Контрудар, Регенерация.
-🛡️ *Снаряжение:* Контрудар & Регенерация.
-🗿 *Молитвенная статуя:* Защита x3, Здоровье x2.
-🦅 *Авиан (Дух):* Синяя Птица или Кактус.""", 
-        None
-    ),
-    "class_warbringer": (
-        "⚔️ Вестник Войны", 
-        """*Роль:* Танковый DPS (Атакующий боец).
-
-✅ *Плюсы:* Наносит огромный урон, когда его бьют (через контрудары). Силен против Лучников.
-❌ *Минусы:* Страдает против Магов с высоким контролем.
-
-📈 *Главные статы:* Атака, Урон контрудара, Крит шанс.
-🛡️ *Снаряжение:* Контрудар & Крит шанс.
-🗿 *Молитвенная статуя:* Урон контрудара x4, Атака x1.
-🦅 *Авиан (Дух):* Огненный Дракон.""", 
-        None
-    ),
-    "class_sacred_hunter": (
-        "🌿 Священный Охотник", 
-        """*Роль:* Гибридный анти-маг (Контроль + Уклонение).
-
-✅ *Плюсы:* Лучший выбор для ПвП против Магов благодаря иммунитету к контролю. Способен уклоняться от сильных ударов.
-❌ *Минусы:* Урон чуть ниже, чем у Повелителя Перьев.
-
-📈 *Главные статы:* Атака, Комбо, Уклонение, Регенерация.
-🏹 *Снаряжение:* Уклонение & Регенерация (или Комбо).
-🗿 *Молитвенная статуя:* Атака x3, Урон комбо x2.
-🦅 *Авиан (Дух):* Охотничий Сокол.""", 
-        None
-    ),
-    "class_plume": (
-        "🪶 Повелитель Перьев", 
-        """*Роль:* Стеклянная пушка (Максимальный чистый урон).
-
-✅ *Плюсы:* Абсолютный король ПвЕ (Боссы, Подземелья). Невероятный урон от комбо-атак.
-❌ *Минусы:* Очень хрупкий. Легко погибает, если враг прорвется сквозь щиты. Уязвим к Обезоруживанию.
-
-📈 *Главные статы:* Атака, Урон комбо, Урон крита, Скорость атаки.
-🏹 *Снаряжение:* Комбо & Крит шанс.
-🗿 *Молитвенная статуя:* Урон комбо x5 или Атака x5.
-🦅 *Авиан (Дух):* Золотой Орел.""", 
-        None
-    ),
-    "class_prophet": (
-        "✨ Пророк", 
-        """*Роль:* Маг контроля и выживаемости.
-
-✅ *Плюсы:* Очень высокая выживаемость для мага, быстро откатывает щиты. Уничтожает Танков и Вестников Войны.
-❌ *Минусы:* Сложно пробить Священного Охотника.
-
-📈 *Главные статы:* Атака, Урон скилла, Здоровье, Регенерация.
-🔮 *Снаряжение:* Крит скилла & Регенерация.
-🗿 *Молитвенная статуя:* Атака x5.
-🦅 *Авиан (Дух):* Тыквенная Ведьма.""", 
-        None
-    ),
-    "class_darklord": (
-        "🌑 Тёмный Владыка", 
-        """*Роль:* Маг-убийца (Ваншот лейта).
-
-✅ *Плюсы:* Способен стереть врага за один прокаст навыков. Оглушает цель и не дает пошевелиться.
-❌ *Минусы:* Если враг пережил первый прокаст — Тёмный Владыка проиграет.
-
-📈 *Главные статы:* Атака, Урон скилла, Крит урон скилла, Оглушение.
-🔮 *Снаряжение:* Крит скилла & Оглушение.
-🗿 *Молитвенная статуя:* Атака x5 или Крит урон скилла x5.
-🦅 *Авиан (Дух):* Тыквенная Ведьма.""", 
-        None
-    ),
-    "class_beastmaster": (
-        "🐾 Повелитель Зверей", 
-        """*Роль:* Атакующий призыватель.
-
-✅ *Плюсы:* Твои питомцы наносят критические удары огромной силы. Класс раскрывается на максимум, когда питомцы достигают 200+ уровня.
-❌ *Минусы:* Зависим от редких Розовых питомцев. Без них урон средний.
-
-📈 *Главные статы:* Атака, Урон питомца, Крит урон питомца.
-🐾 *Снаряжение:* Комбо питомца & Крит питомца.
-🗿 *Молитвенная статуя:* Урон питомца x5.
-🦅 *Авиан (Дух):* Громовой Зверь.""", 
-        None
-    ),
-    "class_supreme": (
-        "💀 Верховный Дух", 
-        """*Роль:* DPS-Танк через спутников.
-
-✅ *Плюсы:* Отличный баланс между защитой и уроном. Сила зависит от правильной расстановки питомцев в слотах.
-❌ *Минусы:* Требует тонкой настройки и понимания механик игры. Требователен к снаряжению.
-
-📈 *Главные статы:* Атака, Здоровье, Урон питомца, Регенерация.
-🐾 *Снаряжение:* Комбо питомца & Регенерация.
-🗿 *Молитвенная статуя:* Здоровье x3, Урон питомца x2.
-🦅 *Авиан (Дух):* Лесной Дух.""", 
-        None
-    )
+    "class_warrior": ("⚔️ Воин", "Основной класс ближнего боя. Высокая защита и контрудары.", warrior_keyboard),
+    "class_archer": ("🏹 Лучник", "Высокий урон комбо и криты. Король ПвЕ контента.", archer_keyboard),
+    "class_mage": ("🔮 Маг", "Упор на активные навыки и оглушение противника.", mage_keyboard),
+    "class_tamer": ("🐉 Укротитель", "Сила зависит от прокачки и расстановки твоих питомцев.", tamer_keyboard),
+    "class_martial_sage": ("🛡️ Боевой Мудрец", "Бессмертный танк с регенерацией. Снаряжение: Контрудар/Реген.", None),
+    "class_warbringer": ("⚔️ Вестник Войны", "Танковый DPS. Силен против Лучников. Снаряжение: Контрудар/Крит.", None),
+    "class_sacred_hunter": ("🌿 Священный Охотник", "Гибридный анти-маг. Иммунитет к контролю. Снаряжение: Уклонение/Комбо.", None),
+    "class_plume": ("🪶 Повелитель Перьев", "Максимальный чистый урон от комбо. Стеклянная пушка. Снаряжение: Комбо/Крит.", None),
+    "class_prophet": ("✨ Пророк", "Маг контроля и щитов. Уничтожает Танков. Снаряжение: Крит скилла/Реген.", None),
+    "class_darklord": ("🌑 Тёмный Владыка", "Ваншот прокаст. Оглушает и стирает цель. Снаряжение: Крит скилла/Оглушение.", None),
+    "class_beastmaster": ("🐾 Повелитель Зверей", "Атакующий призыватель. Снаряжение: Комбо питомца/Крит питомца.", None),
+    "class_supreme": ("💀 Верховный Дух", "DPS-Танк через спутников. Снаряжение: Комбо питомца/Реген.", None)
 }
 
-# ============ ОБРАБОТЧИКИ ТЕЛЕГРАМ КОМАНД ============
+# ============ ОБРАБОТЧИКИ КОМАНД И КНОПОК ============
 async def check_user_access(update: Update) -> bool:
     if await is_approved(update.effective_user.id): return True
     await update.effective_message.reply_text(UI_TEXTS["no_access_msg"])
@@ -556,47 +332,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id == ADMIN_ID: await save_approved_user(user_id, update.effective_user.username or "")
     if await is_approved(user_id): await send_welcome(context.bot, user_id)
-    else: await update.message.reply_text(UI_TEXTS["no_access_msg"])
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_user_access(update): return
     await update.message.reply_text(UI_TEXTS["menu_title"], reply_markup=main_menu_keyboard())
-
-async def classes_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_user_access(update): return
-    await update.message.reply_text(UI_TEXTS["classes_title"], reply_markup=classes_keyboard())
-
-async def builds_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_user_access(update): return
-    await update.message.reply_text(UI_TEXTS["builds_title"] + "Выберите нужный вам класс через /classes для деталей!")
-
-async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_user_access(update): return
-    if not context.args:
-        await update.message.reply_text("Напишите текст. Пример: `/feedback Привет`", parse_mode="Markdown")
-        return
-    if ADMIN_ID:
-        try: await context.bot.send_message(ADMIN_ID, f"📩 Отзыв от @{update.effective_user.username}:\n\n{' '.join(context.args)}")
-        except: pass
-    await update.message.reply_text("Спасибо за отзыв! 🍄")
-
-async def code_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if await is_approved(user_id): return
-    if context.args and " ".join(context.args).strip() == ACCESS_CODE.strip():
-        await save_approved_user(user_id, update.effective_user.username or "")
-        await update.message.reply_text("✅ Доступ успешно предоставлен.")
-        await send_welcome(context.bot, user_id)
-    else: await update.message.reply_text("❌ Неверный код.")
-
-async def request_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if await is_approved(user_id): return
-    await update.message.reply_text("⏳ Запрос отправлен админу.")
-    if ADMIN_ID:
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("✅ Ок", callback_data=f"adm_ok_{user_id}"), InlineKeyboardButton("❌ Нет", callback_data=f"adm_no_{user_id}")]])
-        try: await context.bot.send_message(ADMIN_ID, f"🔔 Запрос доступа от @{update.effective_user.username or user_id}:", reply_markup=kb)
-        except: pass
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -604,22 +343,37 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     user_id = update.effective_user.id
 
-    if data.startswith("adm_ok_") or data.startswith("adm_no_"):
-        if user_id != ADMIN_ID: return
-        t_id = int(data.split("_")[2])
-        if data.startswith("adm_ok_"):
-            await save_approved_user(t_id)
-            await query.edit_message_text(f"✅ Пользователь {t_id} одобрен.")
-            try: await context.bot.send_message(t_id, "🎉 Доступ одобрен! Нажмите /start")
-            except: pass
-        else: await query.edit_message_text(f"❌ Отклонено.")
-        return
-
     if not await is_approved(user_id): return
 
+    # ✅ Нажимая кнопку ФОТО, предлагаем выбрать класс
+    if data == "photo_flow_start":
+        context.user_data['p_awaiting'] = False  # Сбрасываем старые состояния
+        await query.edit_message_text(
+            "📸 *Режим анализа скриншотов*\n\nВыбери класс своего персонажа, для которого ИИ должен подобрать идеальные навыки со скриншота:", 
+            parse_mode="Markdown", 
+            reply_markup=photo_flow_classes_keyboard()
+        )
+        return
+
+    # ✅ После выбора класса просим прислать скриншот
+    if data.startswith("p_flow_"):
+        chosen_class = data.split("_")[2]
+        context.user_data['p_awaiting'] = True
+        context.user_data['p_class'] = chosen_class
+        
+        class_ru = {"warrior": "Воина", "archer": "Лучника / Повелителя Перьев", "mage": "Мага", "tamer": "Укротителя"}
+        await query.edit_message_text(
+            f"📥 *Отлично! Я готов.*\n\nТеперь просто отправь мне **скриншот** своего инвентаря навыков.\n"
+            f"Я проанализирую картинку специально под класс: *{class_ru.get(chosen_class)}*.\n\n"
+            f"⚠️ Текст писать не нужно, просто пришли фото!", 
+            parse_mode="Markdown"
+        )
+        return
+
+    # Классическое меню навигации
     if data == "menu_main": await query.edit_message_text(UI_TEXTS["menu_title"], reply_markup=main_menu_keyboard())
     elif data == "menu_classes": await query.edit_message_text(UI_TEXTS["classes_title"], reply_markup=classes_keyboard())
-    elif data == "menu_beginner": await query.edit_message_text(UI_TEXTS["beginner_title"], parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
+    elif data == "menu_beginner": await query.edit_message_text(UI_TEXTS["beginner_title"], reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
     elif data == "menu_pals": await query.edit_message_text(UI_TEXTS["pals_title"], reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
     elif data == "menu_events": await query.edit_message_text(UI_TEXTS["events_title"], reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
     elif data == "menu_help": await query.edit_message_text(UI_TEXTS["help_title"], reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")]]))
@@ -628,61 +382,89 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = kb_f() if kb_f else InlineKeyboardMarkup([[InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")]])
         await query.edit_message_text(f"*{title}*\n\n{text}", parse_mode="Markdown", reply_markup=kb)
 
+# ============ ОБРАБОТЧИК СООБЩЕНИЙ С СИСТЕМОЙ ФИЛЬТРАЦИИ ФОТО ============
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if not await is_approved(user_id): return
+    
     is_limited, secs = check_rate_limit(user_id)
     if is_limited:
         await update.message.reply_text(UI_TEXTS["rate_limit_msg"].format(seconds=secs))
         return
 
-    user_text = update.message.text or update.message.caption or ""
-    image_data = None
-
+    # 🚫 ЕСЛИ ПОЛЬЗОВАТЕЛЬ ПРИСЛАЛ ФОТО
     if update.message.photo:
+        # Если он НЕ нажал кнопку "📸 Анализ фото" заранее
+        if not context.user_data.get('p_awaiting'):
+            await update.message.reply_text(
+                "⚠️ *Я не могу принять фото напрямую!*\n\n"
+                "Чтобы я корректно прочитал скриншот, нажми сначала кнопку **📸 АНАЛИЗ ФОТО НАВЫКОВ 📸** в Главном меню и выбери свой класс персонажа.",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Открыть меню /menu", callback_data="menu_main")]])
+            )
+            return
+
+        # Если он прошёл по кнопкам, обрабатываем фото!
+        status_msg = await update.message.reply_text("🍄 Изучаю твой скриншот навыков... Секунду...")
+        
         photo_file = await update.message.photo[-1].get_file()
         photo_bytes = await photo_file.download_as_bytearray()
         image_data = base64.b64encode(photo_bytes).decode("utf-8")
-        if not user_text: user_text = "Проанализируй скриншот моих доступных навыков и скажи, что лучше всего экипировать для моего класса."
+        
+        chosen_class = context.user_data.get('p_class', 'archer')
+        class_ru = {"warrior": "Воин", "archer": "Лучник / Повелитель Перьев", "mage": "Маг", "tamer": "Укротитель"}
+        
+        # Сами создаем автоматический пуленепробиваемый промпт для ИИ
+        ai_prompt = (
+            f"Внимательно изучи прикрепленный скриншот меню навыков Legend of Mushroom.\n"
+            f"Игрок играет за класс: {class_ru.get(chosen_class)}.\n"
+            f"Выполни задание по нашему алгоритму анализа: найди все иконки в инвентаре, определи уровни и "
+            f"дай подробные инструкции, что поставить в активные слоты для этого класса."
+        )
+        
+        # Сбрасываем режим ожидания, чтобы в следующий раз он снова нажимал кнопку
+        context.user_data['p_awaiting'] = False
+        context.user_data['p_class'] = None
+        
+        ai_response = await ask_ai(ai_prompt, user_id, image_data)
+        if ai_response:
+            await increment_stats(user_id)
+            await status_msg.edit_text(ai_response, parse_mode="Markdown")
+        else:
+            await status_msg.edit_text("❌ Все зрячие ИИ-модели перегружены или выдали ошибку. Попробуйте отправить скриншот чуть позже.")
+        return
 
+    # ТЕКСТОВЫЙ РЕЖИМ (Обычное общение)
+    user_text = update.message.text or ""
     if not user_text: return
+    
     status_msg = await update.message.reply_text("🍄 Думаю...")
     await add_conversation(user_id, "user", user_text)
     
-    ai_response = await ask_ai(user_text, user_id, image_data)
+    ai_response = await ask_ai(user_text, user_id)
     if ai_response:
         await add_conversation(user_id, "assistant", ai_response)
         await increment_stats(user_id)
         await status_msg.edit_text(ai_response)
-    else: await status_msg.edit_text("❌ Ошибка ИИ. Попробуйте позже.")
+    else: 
+        await status_msg.edit_text("❌ Ошибка ИИ. Попробуйте позже.")
 
 # Фоновая инициализация
 async def post_init(application):
     await init_db()
     await load_knowledge()
-    
     if DISCORD_TOKEN and DISCORD_CHANNEL_ID:
         discord_client = DiscordBridge()
         application.bot_data["discord_client"] = discord_client
         asyncio.create_task(discord_client.start(DISCORD_TOKEN))
-        logger.info("✓ Дискорд-мост успешно запущен в фоне!")
-    else:
-        logger.warning("Дискорд токены не найдены. Мост отключен.")
 
 def main():
     if not TELEGRAM_TOKEN: return
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
-
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("menu", menu_command))
-    application.add_handler(CommandHandler("classes", classes_command))
-    application.add_handler(CommandHandler("builds", builds_command))
-    application.add_handler(CommandHandler("code", code_command))
-    application.add_handler(CommandHandler("request", request_command))
-    application.add_handler(CommandHandler("feedback", feedback_command))
     application.add_handler(CallbackQueryHandler(button_handler))
     application.add_handler(MessageHandler(filters.TEXT | filters.PHOTO, message_handler))
-
     application.run_polling()
 
 if __name__ == '__main__':
