@@ -282,20 +282,21 @@ def main_menu_keyboard():
 
 def photo_flow_classes_keyboard():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🗡️ Воин", callback_data="p_flow_warrior"),
-         InlineKeyboardButton("🏹 Лучник / Пернатый", callback_data="p_flow_archer")],
-        [InlineKeyboardButton("🔮 Маг", callback_data="p_flow_mage"),
-         InlineKeyboardButton("🐉 Укротитель", callback_data="p_flow_tamer")],
+        [InlineKeyboardButton("🗡️ Воин", callback_data="p_main_warrior"),
+         InlineKeyboardButton("🏹 Лучник", callback_data="p_main_archer")],
+        [InlineKeyboardButton("🔮 Маг", callback_data="p_main_mage"),
+         InlineKeyboardButton("🐉 Укротитель", callback_data="p_main_tamer")],
         [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")],
     ])
 
-def classes_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🗡️ Воин", callback_data="class_warrior"),
-         InlineKeyboardButton("🏹 Лучник", callback_data="class_archer")],
-        [InlineKeyboardButton("🔮 Маг", callback_data="class_mage"),
-         InlineKeyboardButton("🐉 Укротитель", callback_data="class_tamer")],
-        [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_main")],
+def p_warrior_keyboard():
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🛡️ Боевой Мудрец", callback_data="p_flow_martial_sage"), InlineKeyboardButton("⚔️ Вестник Войны", callback_data="p_flow_warbringer")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="photo_flow_start")]])
+def p_archer_keyboard():
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🌿 Священный Охотник", callback_data="p_flow_sacred_hunter"), InlineKeyboardButton("🪶 Повелитель Перьев", callback_data="p_flow_plume")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="photo_flow_start")]])
+def p_mage_keyboard():
+    return InlineKeyboardMarkup([[InlineKeyboardButton("✨ Пророк", callback_data="p_flow_prophet"), InlineKeyboardButton("🌑 Тёмный Владыка", callback_data="p_flow_darklord")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="photo_flow_start")]])
+def p_tamer_keyboard():
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="p_flow_beastmaster"), InlineKeyboardButton("💀 Верховный Дух", callback_data="p_flow_supreme")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="photo_flow_start")]]),
     ])
 
 def warrior_keyboard():
