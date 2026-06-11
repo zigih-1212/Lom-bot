@@ -35,7 +35,7 @@ SYSTEM_PROMPT = """You are Shroom Helper — an expert AI assistant for the mobi
 📸 ПРАВИЛА АНАЛИЗА СКРИНШОТОВ (КРИТИЧЕСКИ ВАЖНО):
 Ты обязан изучить картинку и дать подробный разбор:
 - ШАГ 1: Перечисли, какие навыки/вещи/уровни (Lv.) ты отчетливо видишь на картинке. Если сомневаешься в названии на русском, опиши иконку визуально по цвету (например: фиолетовый череп Lv.19, зеленый кулак Lv.5).
-- ШАГ 2: Дай железный совет для указанного подкласса игрока. Напиши, что именно убрать из upper-слотов, а что поставить из инвентаря снизу.
+- ШАГ 2: Дай железный совет для указанного подкласса игрока. Напиши, что именно убрать из верхних слотов, а что поставить из инвентаря снизу.
 
 Отвечай строго на русском языке, используй списки и жирный шрифт. 🍄
 """
@@ -147,7 +147,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("p_flow_"):
         context.user_data['p_awaiting'] = True
         context.user_data['p_class'] = data.split("_")[2]
-        await query.edit_message_text("📥 Отлично! Теперь отправь мне скриншот своих активных навыков.")
+        await query.edit_message_text("📥 Отлично! Теперь отправь мне скриншот своих активных навыки.")
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.photo and context.user_data.get('p_awaiting'):
@@ -187,7 +187,7 @@ def main():
     if not TELEGRAM_TOKEN: return
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
     
-    # Регистрация чистых обработчиков команд без лямбд
+    # Регистрация чистых обработчиков команд без скрытых лямбд
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("menu", menu_command))
     application.add_handler(CallbackQueryHandler(button_handler))
