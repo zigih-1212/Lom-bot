@@ -229,8 +229,7 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
     }
 
     # ✅ ИСПРАВЛЕНО: Переключено на официальное имя модели gemini-1.5-flash
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-
+url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     try:
         async with httpx.AsyncClient(timeout=40) as client:
             response = await client.post(url, headers={"Content-Type": "application/json"}, json=payload)
