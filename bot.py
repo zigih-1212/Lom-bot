@@ -44,13 +44,13 @@ SYSTEM_PROMPT = """You are Shroom Helper — an expert AI assistant for the mobi
 - "Летучий питомец", "птица", "летун", "птичка", "пет-птица" = Авиан (Avian) / Дух.
 - "Стрелок", "лук", "хант" = Лучник (подклассы: Повелитель Перьев, Священный Охотник).
 - "Пет", "питомец", "пал", "спутник" = Питомцы (Pals).
-- "Танк", "меч", "щит" = Воин (подклассы: Боевой Мудрец, Вестник Войны).
-- "Колдун", "прокаст" = Маг (подклассы: Пророк, Тёмный Владыка).
+- "Танк", "меч", "щит" = Воин (подклассы: Blevei Mudrets, Vestnik Voyny).
+- "Колдун", "прокаст" = Маг (подклассы: Prorok, Tyomny Vladyka).
 - "Навыки", "скиллы", "кнопки", "активки" = Активные навыки персонажа.
 
 📸 ПРАВИЛА АНАЛИЗА СКРИНШОТОВ (КРИТИЧЕСКИ ВАЖНО):
 Ты обязан изучить картинку и дать подробный разбор:
-- ШАГ 1: Перечисли, какие навыки/вещи/уровни (Lv.) ты отчетливо видишь на картинке. Если сомневаешься в названии на русском, опиши иконку визуально по цвету (например: фиолетовый череп Lv.19, золотой щит Lv.4).
+- ШАГ 1: Перечисли, какие навыки/вещи/уровни (Lv.) ты отчетливо видишь на картинке. Если сомневаешься в названии на русском, опиши иконку визуально по цвету (например: фиолетовый череп Lv.19, зеленый кулак Lv.5).
 - ШАГ 2: Дай железный совет для указанного подкласса игрока. Напиши, что именно убрать из верхних слотов, а что поставить из инвентаря снизу.
 
 Отвечай строго на русском языке, используй списки и жирный шрифт. 🍄
@@ -184,7 +184,7 @@ class DiscordBridge(discord.Client):
 async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str:
     if not GEMINI_API_KEY:
         logger.error("❌ GEMINI_API_KEY отсутствует в переменных окружения!")
-        return "Ошибка: Не настроен ключ API Google."
+        return "⚙️ Ошибка Конфигурации: В настройках Railway не найден или не сохранен ключ `GEMINI_API_KEY`."
 
     class_guides_context = ""
     try:
@@ -193,11 +193,9 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
         class_guides_context = "\n\n".join(text_blocks)
     except: pass
 
-    # Формируем структуру содержимого для Google API
     contents = []
 
     if image_data:
-        # Режим анализа фото (облегченный и сверхточный)
         v_prompt = (
             f"Контекст официальных билдов игры:\n{class_guides_context}\n\n"
             f"ЗАДАНИЕ ДЛЯ ТЕБЯ: {user_message}"
@@ -210,12 +208,10 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             ]
         })
     else:
-        # Обычный текстовый режим с контекстом и историей
         db_context = f"=== ИГРОВАЯ БАЗА ЗНАНИЙ ===\n{class_guides_context}\n\n{KNOWLEDGE_TEXT}\n\n=== ИВЕНТЫ ===\n{DYNAMIC_EVENTS}"
         contents.append({"role": "user", "parts": [{"text": db_context}]})
         contents.append({"role": "model", "parts": [{"text": "Игровая база знаний успешно загружена в мою память. Задавай свой вопрос."}]})
         
-        # Добавляем историю переписки
         history = await get_conversation_history(user_id, limit=4)
         for h in history:
             role = "model" if h["role"] == "assistant" else "user"
@@ -223,7 +219,6 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
             
         contents.append({"role": "user", "parts": [{"text": user_message}]})
 
-    # Сборка полного тела запроса по стандартам Google AI Studio
     payload = {
         "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
         "contents": contents,
@@ -233,7 +228,8 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
         }
     }
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    # ✅ ИСПРАВЛЕНО: Переключено на официальное имя модели gemini-1.5-flash
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
 
     try:
         async with httpx.AsyncClient(timeout=40) as client:
@@ -246,11 +242,14 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
                 logger.info("🦾 Прямой успешный ответ от официального Google Gemini API!")
                 return ai_text
         
-        logger.error(f"❌ Ошибка Google API Статус: {response.status_code}, Ответ: {response.text}")
-        return None
+        # 🛡️ ВЫВОДИМ ТОЧНУЮ ОШИБКУ НАПРАВЛЯЕМУЮ В ЧАТ ДЛЯ ХИРУРГИЧЕСКОГО ДЕБАГА
+        error_details = f"Ошибка Google API (Статус {response.status_code}): {response.text}"
+        logger.error(f"❌ {error_details}")
+        return f"❌ {error_details[:250]}"
+        
     except Exception as e:
-        logger.error(f"❌ Критическая ошибка при вызове Google Gemini API: {e}")
-        return None
+        logger.error(f"❌ Критическая ошибка сети: {e}")
+        return f"❌ Критическая ошибка вызова API Google: {str(e)}"
 
 # ============ КЛАВИАТУРЫ И СТРУКТУРА МЕНЮ ============
 def main_menu_keyboard():
@@ -317,7 +316,7 @@ def archer_keyboard():
 def mage_keyboard():
     return InlineKeyboardMarkup([[InlineKeyboardButton("✨ Пророк", callback_data="class_prophet"), InlineKeyboardButton("🌑 Тёмный Владыка", callback_data="class_darklord")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")]])
 def tamer_keyboard():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="class_beastmaster"), InlineKeyboardButton("💀 Верховный Дух", callback_data="class_supreme")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="menu_classes")]])
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="class_beastmaster"), InlineKeyboardButton("💀 Верховный Дух", callback_data="class_supreme")], [InlineKeyboardButton(UI_TEXTS["back_btn"], callback_data="class_classes")]])
 
 CLASS_INFO = {
     "class_warrior": ("⚔️ Воин", "Основной класс ближнего боя. Высокая защита и контрудары.", warrior_keyboard),
@@ -463,11 +462,9 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['p_class'] = None
         
         ai_response = await ask_ai(ai_prompt, user_id, image_data)
-        if ai_response:
-            await increment_stats(user_id)
-            await status_msg.edit_text(ai_response, parse_mode="Markdown")
-        else:
-            await status_msg.edit_text("❌ Произошла ошибка на стороне Google API. Попробуйте еще раз.")
+        
+        # Бот выведет успешный ответ или КРИСТАЛЬНО ТОЧНЫЙ ЛОГ ОШИБКИ ИЗ GOOGLE
+        await status_msg.edit_text(ai_response)
         return
 
     # ТЕКСТОВЫЙ РЕЖИМ (Обычное общение)
@@ -478,12 +475,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await add_conversation(user_id, "user", user_text)
     
     ai_response = await ask_ai(user_text, user_id)
-    if ai_response:
-        await add_conversation(user_id, "assistant", ai_response)
-        await increment_stats(user_id)
-        await status_msg.edit_text(ai_response)
-    else: 
-        await status_msg.edit_text("❌ Ошибка ИИ. Попробуйте позже.")
+    await status_msg.edit_text(ai_response)
 
 async def post_init(application):
     await init_db()
