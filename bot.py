@@ -12,7 +12,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Cal
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.FileHandler('bot.log'), logging.StreamHandler()]
+    handlers=[logging.FileHandler('bot.log'), stream_handler := logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
 
@@ -42,10 +42,11 @@ SYSTEM_PROMPT = """You are Shroom Helper — an expert AI assistant for the mobi
 
 UI_TEXTS = {
     "welcome_msg": (
-        "🍄 Привет! Я Shroom Helper — твой помощник по Legend of Mushroom!\n\n"
-        "Выбери интересующий раздел меню или нажми кнопку анализа скриншотов! 👇"
+        "🍄 *Привет! Я Shroom Helper — твой верный помощник по Legend of Mushroom!*\n\n"
+        "Я умею анализировать скриншоты твоих навыков, подбирать лучшие сборки под любой подкласс и отвечать на любые текстовые вопросы по игре.\n\n"
+        "Используй меню кнопок ниже или просто напиши мне свой вопрос! 👇"
     ),
-    "menu_title": "🍄 Главное меню:",
+    "menu_title": "🍄 *Главное меню помощника:*",
 }
 
 # ============ DATABASE (ASYNC) ============
@@ -107,48 +108,125 @@ async def ask_ai(user_message: str, user_id: int, image_data: str = None) -> str
 
 # ============ КЛАВИАТУРЫ ============
 def main_menu_keyboard():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("📸 АНАЛИЗ ФОТО НАВЫКОВ 📸", callback_data="photo_flow_start")]])
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📸 АНАЛИЗ ФОТО НАВЫКОВ 📸", callback_data="photo_flow_start")],
+        [InlineKeyboardButton("⚔️ Классы", callback_data="menu_classes"), InlineKeyboardButton("🏹 Билды", callback_data="menu_builds")],
+        [InlineKeyboardButton("🐾 Питомцы", callback_data="menu_pals"), InlineKeyboardButton("📅 Ивенты", callback_data="menu_events")],
+        [InlineKeyboardButton("💡 Советы новичку", callback_data="menu_beginner"), InlineKeyboardButton("❓ Помощь", callback_data="menu_help")]
+    ])
 
 def photo_flow_classes_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🗡️ Воин", callback_data="p_main_warrior"), InlineKeyboardButton("🏹 Лучник", callback_data="p_main_archer")],
-        [InlineKeyboardButton("🔮 Маг", callback_data="p_main_mage"), InlineKeyboardButton("🐉 Укротитель", callback_data="p_main_tamer")]
+        [InlineKeyboardButton("🔮 Маг", callback_data="p_main_mage"), InlineKeyboardButton("🐉 Укротитель", callback_data="p_main_tamer")],
+        [InlineKeyboardButton("🔙 Назад в меню", callback_data="menu_main")]
     ])
 
-def p_warrior_keyboard(): return InlineKeyboardMarkup([[InlineKeyboardButton("🛡️ Боевой Мудрец", callback_data="p_flow_martial_sage"), InlineKeyboardButton("⚔️ Вестник Войны", callback_data="p_flow_warbringer")]])
-def p_archer_keyboard(): return InlineKeyboardMarkup([[InlineKeyboardButton("🌿 Священный Охотник", callback_data="p_flow_sacred_hunter"), InlineKeyboardButton("🪶 Повелитель Перьев", callback_data="p_flow_plume")]])
-def p_mage_keyboard(): return InlineKeyboardMarkup([[InlineKeyboardButton("✨ Пророк", callback_data="p_flow_prophet"), InlineKeyboardButton("🌑 Тёмный Владыка", callback_data="p_flow_darklord")]])
-def p_tamer_keyboard(): return InlineKeyboardMarkup([[InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="p_flow_beastmaster"), InlineKeyboardButton("💀 Верховный Дух", callback_data="p_flow_supreme")]])
+def p_warrior_keyboard(): return InlineKeyboardMarkup([[InlineKeyboardButton("🛡️ Боевой Мудрец", callback_data="p_flow_martial_sage"), InlineKeyboardButton("⚔️ Вестник Войны", callback_data="p_flow_warbringer")], [InlineKeyboardButton("🔙 Назад", callback_data="photo_flow_start")]])
+def p_archer_keyboard(): return InlineKeyboardMarkup([[InlineKeyboardButton("🌿 Священный Охотник", callback_data="p_flow_sacred_hunter"), InlineKeyboardButton("🪶 Повелитель Перьев", callback_data="p_flow_plume")], [InlineKeyboardButton("🔙 Назад", callback_data="photo_flow_start")]])
+def p_mage_keyboard(): return InlineKeyboardMarkup([[InlineKeyboardButton("✨ Пророк", callback_data="p_flow_prophet"), InlineKeyboardButton("🌑 Тёмный Владыка", callback_data="p_flow_darklord")], [InlineKeyboardButton("🔙 Назад", callback_data="photo_flow_start")]])
+def p_tamer_keyboard(): return InlineKeyboardMarkup([[InlineKeyboardButton("🐾 Повелитель Зверей", callback_data="p_flow_beastmaster"), InlineKeyboardButton("💀 Верховный Дух", callback_data="p_flow_supreme")], [InlineKeyboardButton("🔙 Назад", callback_data="photo_flow_start")]])
+
+def get_subclass_keyboard(main_class):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🛡️ 1 Специализация", callback_data=f"subinfo_{main_class}_1"), InlineKeyboardButton("⚔️ 2 Специализация", callback_data=f"subinfo_{main_class}_2")],
+        [InlineKeyboardButton("🔙 Назад к классам", callback_data="menu_classes")]
+    ])
+
+CLASS_INFO = {
+    "warrior_1": ("🛡️ Боевой Мудрец", "Полноценный бессмертный танк. Высочайшая выживаемость, упор в защиту и постепенное изматывание врага.\n*Рекомендуемое снаряжение:* Контрудар / Регенерация."),
+    "warrior_2": ("⚔️ Вестник Войны", "Танковый DPS-боец ближнего боя. Очень силен против Лучников за счет контратак.\n*Рекомендуемое снаряжение:* Контрудар / Крит."),
+    "archer_1": ("🌿 Священный Охотник", "Гибридный анти-маг. Обладает встроенным иммунитетом к эффектам контроля противника.\n*Рекомендуемое снаряжение:* Уклонение / Комбо."),
+    "archer_2": ("🪶 Повелитель Перьев", "Классический стрелок (Арба). Максимальный и чистый урон от комбо-атак. Стеклянная пушка.\n*Рекомендуемое снаряжение:* Комбо / Крит."),
+    "mage_1": ("✨ Пророк", "Маг глубокого контроля, замедления и прочных щитов. Идеально ломает плотных Танков.\n*Рекомендуемое снаряжение:* Крит навыка / Регенерация."),
+    "mage_2": ("🌑 Тёмный Владыка", "Маг с колоссальным мгновенным взрывным уроном (ваншот-прокаст). Оглушает и стирает цель.\n*Рекомендуемое снаряжение:* Крит навыка / Оглушение."),
+    "tamer_1": ("🐾 Повелитель Зверей", "Атакующий призыватель, чья боевая мощь напрямую завязана на усилении своих спутников.\n*Рекомендуемое снаряжение:* Комбо питомца / Крит питомца."),
+    "tamer_2": ("💀 Верховный Дух", "Защитный DPS-танк, распределяющий входящий по себе урон через призванных существ.\n*Рекомендуемое снаряжение:* Комбо питомца / Регенерация.")
+}
 
 # ============ ХЭНДЛЕРЫ КОМАНД ============
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        UI_TEXTS["welcome_msg"], 
-        parse_mode="Markdown", 
-        reply_markup=main_menu_keyboard()
-    )
+    await update.message.reply_text(UI_TEXTS["welcome_msg"], parse_mode="Markdown", reply_markup=main_menu_keyboard())
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        UI_TEXTS["menu_title"], 
-        reply_markup=main_menu_keyboard()
-    )
+    await update.message.reply_text(UI_TEXTS["menu_title"], parse_mode="Markdown", reply_markup=main_menu_keyboard())
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
+    user_id = update.effective_user.id
     
+    if data == "menu_main":
+        await query.edit_message_text(UI_TEXTS["menu_title"], parse_mode="Markdown", reply_markup=main_menu_keyboard())
+        return
+        
     if data == "photo_flow_start":
-        await query.edit_message_text("📸 Выбери основной класс:", reply_markup=photo_flow_classes_keyboard())
-    elif data.startswith("p_main_"):
+        await query.edit_message_text("📸 *Режим анализа скриншотов*\n\nВыбери основной класс твоего персонажа:", parse_mode="Markdown", reply_markup=photo_flow_classes_keyboard())
+        return
+        
+    if data.startswith("p_main_"):
         kb_map = {"warrior": p_warrior_keyboard, "archer": p_archer_keyboard, "mage": p_mage_keyboard, "tamer": p_tamer_keyboard}
-        await query.edit_message_text("🔮 Выбери точный подкласс:", reply_markup=kb_map[data.split("_")[2]]())
-    elif data.startswith("p_flow_"):
+        await query.edit_message_text("🔮 Теперь выбери точный подкласс персонажа:", reply_markup=kb_map[data.split("_")[2]]())
+        return
+        
+    if data.startswith("p_flow_"):
         context.user_data['p_awaiting'] = True
         context.user_data['p_class'] = data.split("_")[2]
-        await query.edit_message_text("📥 Отлично! Теперь отправь мне скриншот своих активных навыки.")
+        await query.edit_message_text("📥 *Отлично! Я готов.*\n\nТеперь просто отправь мне **скриншот** своего инвентаря активных навыков.\n\nЯ проведу анализ картинки специально под твой выбранный подкласс! Жду фото.", parse_mode="Markdown")
+        return
 
+    if data == "menu_classes":
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🗡️ Воин", callback_data="classinfo_warrior"), InlineKeyboardButton("🏹 Лучник", callback_data="classinfo_archer")],
+            [InlineKeyboardButton("🔮 Маг", callback_data="classinfo_mage"), InlineKeyboardButton("🐉 Укротитель", callback_data="classinfo_tamer")],
+            [InlineKeyboardButton("🔙 Назад в меню", callback_data="menu_main")]
+        ])
+        await query.edit_message_text("⚔️ *Выбери интересующий класс для изучения специализаций:*", parse_mode="Markdown", reply_markup=kb)
+        return
+
+    if data.startswith("classinfo_"):
+        cls = data.split("_")[1]
+        class_names = {"warrior": "Воин", "archer": "Лучник", "mage": "Маг", "tamer": "Укротитель"}
+        await query.edit_message_text(f"🔮 Выбери ветку развития для класса *{class_names[cls]}*:", parse_mode="Markdown", reply_markup=get_subclass_keyboard(cls))
+        return
+
+    if data.startswith("subinfo_"):
+        _, cls, num = data.split("_")
+        key = f"{cls}_{num}"
+        if key in CLASS_INFO:
+            title, text = CLASS_INFO[key]
+            kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 К подклассам", callback_data=f"classinfo_{cls}")], [InlineKeyboardButton("🔙 Главное меню", callback_data="menu_main")]])
+            await query.edit_message_text(f"*{title}*\n\n{text}", parse_mode="Markdown", reply_markup=kb)
+        return
+
+    # Интерактивные ИИ-кнопки меню
+    ai_prompts = {
+        "menu_builds": "Расскажи про актуальные мета-билды навыков и снаряжения для разных классов в мобильной игре Legend of Mushroom.",
+        "menu_pals": "Дай развернутый гайд по питомцам (Pals / Спутники) в игре Legend of Mushroom. Какие самые лучшие и для каких задач?",
+        "menu_events": "Какие основные регулярные ивенты проходят в игре Legend of Mushroom и как рядовому игроку эффективно копить ресурсы и готовиться к ним?",
+        "menu_beginner": "Дай топ-5 важнейших советов, секретов и критических ошибок для новичков в игре Legend of Mushroom."
+    }
+
+    if data in ai_prompts:
+        await query.edit_message_text("🍄 *Запрашиваю подробную аналитическую информацию у официального ИИ от Google... Минутку...*", parse_mode="Markdown")
+        resp = await ask_ai(ai_prompts[data], user_id)
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад в меню", callback_data="menu_main")]])
+        await query.edit_message_text(resp, parse_mode="Markdown", reply_markup=kb)
+        return
+
+    if data == "menu_help":
+        help_text = (
+            "❓ *Как правильно использовать Shroom Helper:*\n\n"
+            "1. **Анализ скриншотов**: Нажми верхнюю кнопку меню, выбери класс и подкласс, затем пришли картинку инвентаря навыков. ИИ составит идеальную сборку.\n\n"
+            "2. **Свободный текстовый чат**: Ты можешь отправить боту любое текстовое сообщение с вопросом по игре (например: *'какие статы ролить на арбалетчика?'*), и ИИ развернуто ответит.\n\n"
+            "3. **Интерактивные разделы**: Кнопки Билды, Питомцы и Ивенты автоматически вызывают ИИ для генерации актуальных игровых гайдов."
+        )
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад в меню", callback_data="menu_main")]])
+        await query.edit_message_text(help_text, parse_mode="Markdown", reply_markup=kb)
+        return
+
+# ============ ОБРАБОТЧИК СООБЩЕНИЙ ============
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.photo and context.user_data.get('p_awaiting'):
         status_msg = await update.message.reply_text("🍄 Официальный ИИ от Google изучает скриншот...")
@@ -187,7 +265,6 @@ def main():
     if not TELEGRAM_TOKEN: return
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
     
-    # Регистрация чистых обработчиков команд без скрытых лямбд
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("menu", menu_command))
     application.add_handler(CallbackQueryHandler(button_handler))
